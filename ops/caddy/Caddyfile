@@ -1,6 +1,7 @@
 {
 	admin off
 	auto_https disable_redirects
+	default_sni 192.168.1.115
 }
 
 # Primary: Tailscale MagicDNS name with a real certificate
@@ -34,7 +35,7 @@
 }
 
 # Secondary: direct LAN access by IP, self-signed
-https:// {
+https://192.168.1.115 {
 	tls internal
 	handle /health {
 		reverse_proxy api:8000

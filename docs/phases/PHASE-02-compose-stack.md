@@ -803,8 +803,7 @@ mkdir -p /tmp/out
 ```bash
 docker run --rm --shm-size=1g \
   -v /tmp/sandbox_test.py:/test.py:ro -v /tmp/out:/tmp/out \
-  mcr.microsoft.com/playwright/python:latest \
-  python /test.py
+  pw-gate python /test.py
 ```
 
 ### Attempt 2 — sandbox with SYS_ADMIN, if attempt 1 failed
@@ -812,8 +811,7 @@ docker run --rm --shm-size=1g \
 ```bash
 docker run --rm --shm-size=1g --cap-add=SYS_ADMIN \
   -v /tmp/sandbox_test.py:/test.py:ro -v /tmp/out:/tmp/out \
-  mcr.microsoft.com/playwright/python:latest \
-  python /test.py
+  pw-gate python /test.py
 ```
 
 ### Attempt 3 — sandbox disabled, if both failed
@@ -821,8 +819,7 @@ docker run --rm --shm-size=1g --cap-add=SYS_ADMIN \
 ```bash
 docker run --rm --shm-size=1g \
   -v /tmp/sandbox_test.py:/test.py:ro -v /tmp/out:/tmp/out \
-  mcr.microsoft.com/playwright/python:latest \
-  python /test.py --no-sandbox
+  pw-gate python /test.py --no-sandbox
 ```
 
 ### Also measure what it costs
