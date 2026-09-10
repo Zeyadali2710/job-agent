@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+secrets/
+*.key
+*.pem
+profile/sensitive.yaml
+!profile/sensitive.example.yaml
+artifacts/
+logs/
+data/
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
