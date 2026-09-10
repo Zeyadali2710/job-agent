@@ -566,6 +566,7 @@ services:
     cpus: 0.5
     ports:
       - "192.168.1.115:443:443"
+      - "100.113.104.18:443:443"
     environment:
       TAILNET_HOSTNAME: ${TAILNET_HOSTNAME}
       DASHBOARD_USER: ${DASHBOARD_USER}

@@ -1,0 +1,117 @@
+name: job-agent
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+secrets:
+  postgres_password:
+    file: /opt/job-agent/secrets/postgres_password
+  discord_webhook:
+    file: /opt/job-agent/secrets/discord_webhook
+  anthropic_api_key:
+    file: /opt/job-agent/secrets/anthropic_api_key
+
+services:
+  postgres:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    mem_limit: 1280m
+    memswap_limit: 1280m
+    cpus: 1.5
+    shm_size: 256m
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      TZ: UTC
+    secrets:
+      - postgres_password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./ops/postgres.conf:/etc/postgresql/postgresql.conf:ro
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging: *default-logging
+    networks: [internal]
+
+  api:
+    build: .
+    restart: unless-stopped
+    mem_limit: 512m
+    memswap_limit: 512m
+    cpus: 1.0
+    pids_limit: 256
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    environment:
+      DRY_RUN: ${DRY_RUN}
+      LOG_LEVEL: ${LOG_LEVEL}
+      TZ: ${TZ}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: postgres
+    secrets:
+      - postgres_password
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health',timeout=3).status==200 else 1)\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    logging: *default-logging
+    networks: [internal]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    mem_limit: 128m
+    memswap_limit: 128m
+    cpus: 0.5
+    ports:
+      - "192.168.1.115:443:443"
+      - "100.113.104.18:443:443"
+    environment:
+      TAILNET_HOSTNAME: ${TAILNET_HOSTNAME}
+      DASHBOARD_USER: ${DASHBOARD_USER}
+      DASHBOARD_PASSWORD_HASH: ${DASHBOARD_PASSWORD_HASH}
+    volumes:
+      - ./ops/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - /opt/job-agent/certs:/certs:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+    logging: *default-logging
+    networks: [internal, edge]
+
+  # ---- defined in later phases; budget shown so the total stays visible ----
+  # worker:     mem_limit: 1024m  cpus: 2.0   (Phase 5)
+  # scheduler:  mem_limit: 256m   cpus: 0.5   (Phase 6)
+  # notifier:   mem_limit: 192m   cpus: 0.5   (Phase 10)
+  # browser:    mem_limit: 3072m  cpus: 2.0   (Phase 15)
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
+
+networks:
+  internal:
+    internal: true
+  edge:
