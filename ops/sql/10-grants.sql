@@ -45,7 +45,7 @@ GRANT SELECT ON app.applications, app.job_groups, app.postings, app.job_analyses
                 app.generated_documents, app.settings TO ja_renderer;
 GRANT SELECT, INSERT, UPDATE ON app.generated_documents, app.application_answers TO ja_renderer;
 GRANT INSERT ON app.events, app.open_questions TO ja_renderer;
-GRANT UPDATE, INSERT ON app.heartbeats TO ja_renderer;
+GRANT SELECT, UPDATE, INSERT ON app.heartbeats TO ja_renderer;   -- SELECT: the beat is an upsert
 
 -- The only sensitive grant in the system.
 GRANT SELECT ON sensitive.profile_sensitive TO ja_renderer;

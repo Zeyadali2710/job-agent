@@ -1,0 +1,11 @@
+-- ja_renderer beats like every other service, with
+--   INSERT INTO app.heartbeats ... ON CONFLICT (worker) DO UPDATE
+-- and evaluating that conflict target reads the row, so the write needs SELECT
+-- as well as INSERT/UPDATE. ja_renderer is deliberately excluded from the broad
+-- "GRANT SELECT ON ALL TABLES IN SCHEMA app" in ops/sql/10-grants.sql, and
+-- app.heartbeats is missing from its explicit SELECT list -- so its first
+-- heartbeat in Phase 12 would fail on a permission error.
+--
+-- This grants exactly one table. It does not widen ja_renderer's reach into
+-- anything carrying job or profile data.
+GRANT SELECT ON app.heartbeats TO ja_renderer;
