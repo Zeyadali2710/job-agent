@@ -1,0 +1,154 @@
+# company → (ats platform, tenant token)
+# Verify each tenant by opening the API URL in a browser before adding it.
+#   greenhouse: https://boards-api.greenhouse.io/v1/boards/<tenant>/jobs
+#   lever:      https://api.lever.co/v0/postings/<tenant>?mode=json
+#   ashby:      https://api.ashbyhq.com/posting-api/job-board/<tenant>
+companies:
+  - name: Ripple
+    slug: ripple
+    platform: greenhouse
+    tenant: ripple
+  - name: Databricks
+    slug: databricks
+    platform: greenhouse
+    tenant: databricks
+  - name: Thoughtworks
+    slug: thoughtworks
+    platform: greenhouse
+    tenant: thoughtworks
+  - name: Anduril Industries
+    slug: anduril-industries
+    platform: greenhouse
+    tenant: andurilindustries
+  - name: Airlock Digital
+    slug: airlock-digital
+    platform: greenhouse
+    tenant: airlockdigital
+  - name: Culture Amp
+    slug: culture-amp
+    platform: greenhouse
+    tenant: cultureamp
+  - name: Eucalyptus
+    slug: eucalyptus
+    platform: greenhouse
+    tenant: eucalyptus
+  - name: AirTrunk
+    slug: airtrunk
+    platform: greenhouse
+    tenant: airtrunk
+  - name: DroneShield
+    slug: droneshield
+    platform: greenhouse
+    tenant: droneshield
+  - name: Quantium
+    slug: quantium
+    platform: greenhouse
+    tenant: quantium
+  - name: Octopus Deploy
+    slug: octopus-deploy
+    platform: greenhouse
+    tenant: octopusdeploy
+  - name: PhoenixDX
+    slug: phoenixdx
+    platform: greenhouse
+    tenant: phoenixdx
+  - name: Littlepay
+    slug: littlepay
+    platform: greenhouse
+    tenant: littlepay
+  - name: Lyrebird Health
+    slug: lyrebird-health
+    platform: lever
+    tenant: lyrebirdhealth
+  - name: Wisr
+    slug: wisr
+    platform: lever
+    tenant: wisr
+  - name: Render Networks
+    slug: render-networks
+    platform: lever
+    tenant: rendernetworks
+  - name: Macquarie Technology Group
+    slug: macquarie-technology-group
+    platform: lever
+    tenant: macquarietechnologygroup
+  - name: Okendo
+    slug: okendo
+    platform: lever
+    tenant: okendo
+  - name: MyPass Global
+    slug: mypass-global
+    platform: lever
+    tenant: mypassglobal
+  - name: Blinq
+    slug: blinq
+    platform: lever
+    tenant: blinq
+  - name: Megaport
+    slug: megaport
+    platform: lever
+    tenant: megaport
+  - name: Brighte
+    slug: brighte
+    platform: lever
+    tenant: brighte
+  - name: Up
+    slug: up
+    platform: ashby
+    tenant: up
+  - name: Ferocia
+    slug: ferocia
+    platform: ashby
+    tenant: ferocia
+  - name: Tactiq
+    slug: tactiq
+    platform: ashby
+    tenant: tactiq
+  - name: Shift
+    slug: shift
+    platform: ashby
+    tenant: shift
+  - name: Neara
+    slug: neara
+    platform: ashby
+    tenant: neara
+  - name: SiteMinder
+    slug: siteminder
+    platform: ashby
+    tenant: siteminder
+  - name: Airtasker
+    slug: airtasker
+    platform: ashby
+    tenant: airtasker
+  - name: Dovetail
+    slug: dovetail
+    platform: ashby
+    tenant: dovetail
+  - name: Qwilr
+    slug: qwilr
+    platform: ashby
+    tenant: qwilr
+  - name: CorePlan
+    slug: coreplan
+    platform: ashby
+    tenant: coreplan
+  - name: Maincode
+    slug: maincode
+    platform: ashby
+    tenant: maincode
+  - name: Steadfast Solutions
+    slug: steadfast-solutions
+    platform: workable
+    tenant: steadfast-solutions
+  - name: Shockbyte
+    slug: shockbyte
+    platform: workable
+    tenant: shockbyte
+  - name: HealthMatch
+    slug: healthmatch
+    platform: workable
+    tenant: healthmatch
+  - name: Starling Bank
+    slug: starling-bank
+    platform: workable
+    tenant: starling-bank

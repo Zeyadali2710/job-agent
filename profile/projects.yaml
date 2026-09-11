@@ -1,0 +1,9 @@
+- id: proj.jobagent
+  name: Self-hosted job application agent
+  url: null
+  start: 2026-08
+  end: null
+  bullets:
+    - id: proj.jobagent.b1
+      text: Designed a Postgres-backed work queue using FOR UPDATE SKIP LOCKED, replacing Celery and Redis
+      tags: [postgres, python, architecture]

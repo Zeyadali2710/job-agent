@@ -1,0 +1,11 @@
+- id: edu.unsw
+  institution: UNSW Sydney
+  qualification: Bachelor of Science (Computer Science)
+  start: 2022-02
+  end: 2025-11
+  wam: 78
+  completed: true
+  highlights:
+    - id: edu.unsw.h1
+      text: Coursework in distributed systems, security engineering and machine learning
+      tags: [distributed-systems, security, ml]

@@ -1,0 +1,6 @@
+id: work_rights.self
+status: CITIZEN          # CITIZEN | PR | TEMP_GRADUATE_485 | STUDENT_500 | REQUIRES_SPONSORSHIP
+citizenship: AU
+clearance_held: null     # null | Baseline | NV1 | NV2 | PV
+clearance_eligible: true # AGSVA requires AU citizenship
+requires_sponsorship: false

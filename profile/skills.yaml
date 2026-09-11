@@ -1,0 +1,10 @@
+- id: skill.python
+  name: Python
+  level: ADVANCED        # BASIC | WORKING | ADVANCED | EXPERT
+  years: 4
+  evidence_ids: [exp.acme.b1, proj.jobagent.b1]
+- id: skill.postgres
+  name: PostgreSQL
+  level: WORKING
+  years: 2
+  evidence_ids: [proj.jobagent.b1]

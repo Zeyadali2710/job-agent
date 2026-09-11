@@ -1,0 +1,14 @@
+id: identity.self
+full_name: Zeyad <surname>
+preferred_name: Zeyad
+email: you@example.com
+phone_display: "+61 4XX XXX XXX"   # display only; the real number is in sensitive.yaml
+location_city: Sydney
+location_state: NSW
+links:
+  - id: link.github
+    label: GitHub
+    url: https://github.com/<you>
+  - id: link.linkedin
+    label: LinkedIn
+    url: https://www.linkedin.com/in/<you>

@@ -1,0 +1,7 @@
+- id: star.deploytime
+  prompt_themes: [initiative, technical-problem-solving]
+  situation: The team's deploy pipeline took 25 minutes, discouraging small releases.
+  task: Reduce the feedback loop without changing the deployment target.
+  action: Profiled the pipeline, parallelised the test stage and cached dependency layers.
+  result: Deploys dropped to 6 minutes; release frequency roughly tripled.
+  source_ids: [exp.acme.b1]

@@ -1,0 +1,15 @@
+- id: exp.acme
+  organisation: Acme Pty Ltd
+  title: Software Engineering Intern
+  location: Sydney, NSW
+  start: 2024-11
+  end: 2025-02
+  bullets:
+    - id: exp.acme.b1
+      text: Built an internal service that reduced deploy time from 25 to 6 minutes
+      tags: [python, ci, docker]
+      metrics: {before_minutes: 25, after_minutes: 6}
+    - id: exp.acme.b2
+      text: Wrote integration tests raising coverage on the billing module to 84%
+      tags: [testing, pytest]
+      metrics: {coverage_pct: 84}

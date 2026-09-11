@@ -1,0 +1,14 @@
+id: preferences.self
+seniority_targets: [GRADUATE, JUNIOR, INTERN]
+location_classes_accepted:
+  - SYDNEY_CBD
+  - SYDNEY_METRO
+  - GREATER_SYDNEY
+  - HYBRID_SYDNEY
+  - REMOTE_AU
+allow_relocation: false
+employment_types: [FULL_TIME, GRAD_PROGRAM, INTERNSHIP]
+salary_min: 70000
+salary_target: 90000
+salary_is_mandatory: false
+company_blacklist: []

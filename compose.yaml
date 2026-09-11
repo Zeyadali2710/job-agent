@@ -9,6 +9,14 @@ x-logging: &default-logging
 secrets:
   postgres_password:
     file: /opt/job-agent/secrets/postgres_password
+  ja_migrator_password:
+    file: /opt/job-agent/secrets/ja_migrator_password
+  ja_api_password:
+    file: /opt/job-agent/secrets/ja_api_password
+  ja_worker_password:
+    file: /opt/job-agent/secrets/ja_worker_password
+  ja_scheduler_password:
+    file: /opt/job-agent/secrets/ja_scheduler_password
   discord_webhook:
     file: /opt/job-agent/secrets/discord_webhook
   anthropic_api_key:
@@ -32,6 +40,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./ops/postgres.conf:/etc/postgresql/postgresql.conf:ro
+      - /opt/job-agent/initdb:/docker-entrypoint-initdb.d:ro
     command: postgres -c config_file=/etc/postgresql/postgresql.conf
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
@@ -60,11 +69,11 @@ services:
       DRY_RUN: ${DRY_RUN}
       LOG_LEVEL: ${LOG_LEVEL}
       TZ: ${TZ}
-      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_USER: ja_api
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_HOST: postgres
     secrets:
-      - postgres_password
+      - ja_api_password
     depends_on:
       postgres:
         condition: service_healthy
@@ -100,6 +109,116 @@ services:
     logging: *default-logging
     networks: [internal, edge]
 
+  profile-loader:
+    build: .
+    profiles: ["tools"]
+    restart: "no"
+    mem_limit: 256m
+    memswap_limit: 256m
+    cpus: 1.0
+    read_only: true
+    tmpfs: [/tmp:size=32m]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: postgres
+      TZ: UTC
+    secrets: [postgres_password]
+    volumes:
+      - ./profile:/app/profile:ro
+    depends_on:
+      postgres: {condition: service_healthy}
+    command: ["python", "-m", "job_agent.profile.store"]
+    networks: [internal]
+
+  migrator:
+    build: .
+    profiles: ["tools"]
+    restart: "no"
+    mem_limit: 256m
+    memswap_limit: 256m
+    cpus: 1.0
+    pids_limit: 128
+    init: true
+    read_only: false
+    tmpfs:
+      - /tmp:size=32m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    environment:
+      POSTGRES_USER: ja_migrator
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: postgres
+      TZ: UTC
+    secrets:
+      - ja_migrator_password
+    volumes:
+      - ./migrations:/app/migrations
+      - ./alembic.ini:/app/alembic.ini:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["alembic", "upgrade", "head"]
+    logging: *default-logging
+    networks: [internal]
+
+  worker:
+    build: .
+    restart: unless-stopped
+    mem_limit: 1024m
+    memswap_limit: 1024m
+    cpus: 2.0
+    pids_limit: 256
+    init: true
+    read_only: true
+    tmpfs: [/tmp:size=128m]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    environment:
+      DRY_RUN: ${DRY_RUN}
+      LOG_LEVEL: ${LOG_LEVEL}
+      TZ: UTC
+      POSTGRES_USER: ja_worker
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: postgres
+      WORKER_NAME: worker-1
+    secrets: [ja_worker_password]
+    volumes:
+      - ./config:/app/config:ro
+      - ./tests:/app/tests:ro
+    depends_on:
+      postgres: {condition: service_healthy}
+    command: ["python", "-m", "job_agent.workers.loop"]
+    logging: *default-logging
+    networks: [internal, edge]
+  
+  scheduler:
+    build: .
+    restart: unless-stopped
+    mem_limit: 256m
+    memswap_limit: 256m
+    cpus: 0.5
+    pids_limit: 128
+    init: true
+    read_only: true
+    tmpfs: [/tmp:size=32m]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    environment:
+      TZ: Australia/Sydney
+      POSTGRES_USER: ja_scheduler
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: postgres
+      WORKER_NAME: scheduler
+    secrets: [ja_scheduler_password]
+    depends_on:
+      postgres: {condition: service_healthy}
+    command: ["python", "-m", "job_agent.scheduler.main"]
+    logging: *default-logging
+    networks: [internal]
   # ---- defined in later phases; budget shown so the total stays visible ----
   # worker:     mem_limit: 1024m  cpus: 2.0   (Phase 5)
   # scheduler:  mem_limit: 256m   cpus: 0.5   (Phase 6)
