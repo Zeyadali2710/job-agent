@@ -57,6 +57,10 @@ def build() -> AsyncIOScheduler:
                   args=["lever"], id="poll:lever", jitter=90, replace_existing=True)
     sched.add_job(enqueue_poll, CronTrigger(minute="*/30", timezone=SYDNEY),
                   args=["ashby"], id="poll:ashby", jitter=90, replace_existing=True)
+    # config/companies.yaml carries 4 workable tenants; without this job they
+    # were only ever polled by running discovery.py by hand.
+    sched.add_job(enqueue_poll, CronTrigger(minute="17,47", timezone=SYDNEY),
+                  args=["workable"], id="poll:workable", jitter=90, replace_existing=True)
     sched.add_job(daily_summary, CronTrigger(hour=19, minute=0, timezone=SYDNEY),
                   id="daily_summary", replace_existing=True)
     sched.add_job(enqueue_dedupe, CronTrigger(minute="*/10", timezone=SYDNEY),

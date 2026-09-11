@@ -54,6 +54,25 @@ ON CONFLICT (source_id, source_job_id) DO UPDATE SET
 RETURNING id, (xmax = 0) AS inserted
 """)
 
+# An unchanged payload makes INSERT_RAW return NULL, which used to skip
+# UPSERT_POSTING entirely -- so last_seen_at froze at first sight and every
+# still-live job looked stale the next day. "Still on the board" and "the
+# payload changed" are different facts; only the second one needs the upsert.
+TOUCH_POSTING = text("""
+UPDATE app.postings p SET last_seen_at = now()
+  FROM app.sources s
+ WHERE s.id = p.source_id AND s.key = :skey AND p.source_job_id = :sjid
+""")
+
+# The group's own last_seen_at was only ever its insert-time default: resolve()
+# returns early for an already-grouped posting, so nothing advanced it.
+TOUCH_GROUP = text("""
+UPDATE app.job_groups g SET last_seen_at = now()
+  FROM app.job_group_postings gp, app.postings p, app.sources s
+ WHERE g.id = gp.job_group_id AND p.id = gp.posting_id
+   AND s.id = p.source_id AND s.key = :skey AND p.source_job_id = :sjid
+""")
+
 
 def load_companies() -> list[dict]:
     return (yaml.safe_load(open(CONFIG).read()) or {}).get("companies", [])
@@ -130,6 +149,10 @@ async def poll_source(skey: str) -> tuple[int, int]:
                         "sha": raw.payload_sha256,
                     })).scalar()
                     if rid is None:
+                        await conn.execute(TOUCH_POSTING,
+                                           {"skey": skey, "sjid": raw.source_job_id})
+                        await conn.execute(TOUCH_GROUP,
+                                           {"skey": skey, "sjid": raw.source_job_id})
                         continue
                     new_raw += 1
 
@@ -151,6 +174,10 @@ async def poll_source(skey: str) -> tuple[int, int]:
                     })).first()
                     if res and res.inserted:
                         new_postings += 1
+                    # UPSERT_POSTING advances the posting's own last_seen_at,
+                    # never the group's.
+                    await conn.execute(TOUCH_GROUP,
+                                       {"skey": skey, "sjid": raw.source_job_id})
             except Exception as exc:
                 async with tx() as conn:
                     await conn.execute(text(
