@@ -1,0 +1,14 @@
+{# No wrapper: the form swaps this into #feed with the default innerHTML. #}
+<table>
+<tr><th>Title</th><th>Company</th><th>Location</th><th>Posted</th><th>Status</th></tr>
+{% for j in jobs %}
+<tr>
+  <td><a href="/jobs/{{ j.id }}">{{ j.title }}</a></td>
+  <td>{{ j.company or '—' }}</td>
+  <td>{{ j.location_class }}</td>
+  <td class="mut">{{ j.posted_sydney or '—' }}</td>
+  <td><span class="pill">{{ j.status }}</span>
+      {% if j.screen_reason %}<div class="mut" style="font-size:12px">{{ j.screen_reason }}</div>{% endif %}</td>
+</tr>
+{% else %}<tr><td colspan="5" class="mut">nothing matches</td></tr>{% endfor %}
+</table>

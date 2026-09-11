@@ -1,12 +1,15 @@
 import asyncio
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 from job_agent.core.config import get_settings
 from job_agent.core.db import engine
+from job_agent.web.routes import router
 
 settings = get_settings()
 
@@ -24,6 +27,10 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Job Agent", lifespan=lifespan)
+app.mount("/static",
+          StaticFiles(directory=str(Path(__file__).parent / "static")),
+          name="static")
+app.include_router(router)
 
 
 @app.get("/health")

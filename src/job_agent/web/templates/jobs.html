@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% block body %}
+<form hx-get="/partials/jobs" hx-target="#feed" hx-trigger="change,keyup delay:400ms">
+  <select name="status">
+    <option value="">all</option>
+    {% for s in ['READY','REVIEW_REQUIRED','DISCOVERED','SCREENED_OUT','APPLIED','CLOSED'] %}
+    <option value="{{ s }}" {% if s==status %}selected{% endif %}>{{ s }}</option>{% endfor %}
+  </select>
+  <input name="q" placeholder="title contains…" value="{{ query or '' }}">
+</form>
+<div id="feed">{% include "_jobs.html" %}</div>
+{% endblock %}

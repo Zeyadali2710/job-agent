@@ -1,0 +1,12 @@
+<div class="grid">
+{% for c in columns %}
+<div class="card"><div class="n">{{ c.count }}</div><div class="l">{{ c.label }}</div></div>
+{% endfor %}
+</div>
+<h3>Queue</h3>
+<table><tr><th>Kind</th><th>State</th><th>Count</th><th>Oldest</th></tr>
+{% for w in work %}
+<tr><td>{{ w.kind }}</td><td class="{{ 'bad' if w.state in ('FAILED','DEAD') else '' }}">{{ w.state }}</td>
+    <td>{{ w.count }}</td><td class="mut">{{ w.oldest_sydney or '—' }}</td></tr>
+{% else %}<tr><td colspan="4" class="mut">queue empty</td></tr>{% endfor %}
+</table>

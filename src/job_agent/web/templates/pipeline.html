@@ -1,0 +1,6 @@
+{% extends "base.html" %}{% block body %}
+{# innerHTML swap, so _pipeline.html must NOT repeat this wrapper. #}
+<div hx-get="/partials/pipeline" hx-trigger="every 15s" hx-swap="innerHTML">
+{% include "_pipeline.html" %}
+</div>
+{% endblock %}

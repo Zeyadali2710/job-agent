@@ -1,0 +1,8 @@
+{# Carries its own .grid wrapper: the poll swaps outerHTML, so the replacement
+   must include the element that holds hx-get or polling stops after one swap.
+   Never nest this inside another .grid -- that was the guide's bug. #}
+<div class="grid" hx-get="/partials/stats" hx-trigger="every 30s" hx-swap="outerHTML">
+{% for s in stats %}
+  <div class="card"><div class="n">{{ s.value }}</div><div class="l">{{ s.label }}</div></div>
+{% endfor %}
+</div>

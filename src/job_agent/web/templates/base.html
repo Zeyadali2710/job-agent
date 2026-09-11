@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}Job Agent{% endblock %}</title>
+<script src="/static/htmx.min.js"></script>
+<style>
+:root{--bg:#0f1115;--fg:#e6e8ec;--mut:#8b93a1;--card:#171a21;--line:#252a34;
+      --ok:#3fb950;--warn:#d29922;--bad:#f85149}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.5 system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--fg)}
+header{padding:12px 20px;border-bottom:1px solid var(--line);display:flex;gap:20px;align-items:center}
+header a{color:var(--mut);text-decoration:none}header a.on{color:var(--fg)}
+main{padding:20px;max-width:1100px;margin:0 auto}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px}
+.card .n{font-size:28px;font-weight:600}
+.card .l{color:var(--mut);font-size:13px}
+table{width:100%;border-collapse:collapse}
+td,th{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{color:var(--mut);font-weight:500;font-size:13px}
+.pill{padding:2px 8px;border-radius:99px;font-size:12px;border:1px solid var(--line)}
+.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}.mut{color:var(--mut)}
+a{color:#58a6ff}
+.dry{background:var(--warn);color:#000;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:600}
+</style>
+</head>
+<body>
+<header>
+  <strong>job-agent</strong>
+  <a href="/" class="{% if page=='overview' %}on{% endif %}">Overview</a>
+  <a href="/jobs" class="{% if page=='jobs' %}on{% endif %}">Jobs</a>
+  <a href="/pipeline" class="{% if page=='pipeline' %}on{% endif %}">Pipeline</a>
+  <a href="/events" class="{% if page=='events' %}on{% endif %}">Events</a>
+  <span style="margin-left:auto">
+    {% if dry_run %}<span class="dry">DRY RUN</span>{% endif %}
+  </span>
+</header>
+<main>{% block body %}{% endblock %}</main>
+</body></html>

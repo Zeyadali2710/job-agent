@@ -1,0 +1,11 @@
+{# Same contract as _stats.html: outerHTML swap, so the wrapper lives here and
+   /partials/events returns THIS, not the full page. Returning events.html
+   would inject a whole <!doctype html> document into the body every 20s. #}
+<table hx-get="/partials/events" hx-trigger="every 20s" hx-swap="outerHTML">
+<tr><th>When</th><th>Entity</th><th>Actor</th><th>Action</th><th>Detail</th></tr>
+{% for e in events %}
+<tr><td class="mut">{{ e.at_sydney }}</td>
+    <td>{% if e.entity_type=='job_group' and e.entity_id %}<a href="/jobs/{{ e.entity_id }}">{{ e.entity_type }} {{ e.entity_id }}</a>{% else %}{{ e.entity_type }}{% endif %}</td>
+    <td>{{ e.actor }}</td><td>{{ e.action }}</td><td class="mut">{{ e.detail }}</td></tr>
+{% else %}<tr><td colspan="5" class="mut">no events</td></tr>{% endfor %}
+</table>

@@ -1,0 +1,41 @@
+{% extends "base.html" %}{% block body %}
+<h2>{{ job.title }}</h2>
+<p class="mut">{{ job.company or '—' }} · {{ job.location_class }} ·
+   posted {{ job.posted_sydney or 'unknown' }} ({{ job.posted_at_confidence }})</p>
+<p><span class="pill">{{ job.status }}</span>
+   {% if job.screen_reason %}<span class="pill bad">{{ job.screen_reason }}</span>{% endif %}</p>
+
+<h3>Sources ({{ postings|length }})</h3>
+<table><tr><th>Source</th><th>Layer</th><th>Dup?</th><th>URL</th></tr>
+{% for p in postings %}
+<tr><td>{{ p.source }}</td><td>{{ p.match_layer }}</td>
+    <td>{{ 'probable' if p.probable_duplicate else '—' }}</td>
+    <td>{% if p.canonical_url %}<a href="{{ p.canonical_url }}" rel="noreferrer">open</a>{% endif %}</td></tr>
+{% else %}<tr><td colspan="4" class="mut">no postings in this group</td></tr>{% endfor %}
+</table>
+
+{% if work_rights %}
+<h3>Work rights — {{ work_rights.classification }}</h3>
+{% if work_rights.clause_verbatim %}<blockquote class="mut">{{ work_rights.clause_verbatim }}</blockquote>{% endif %}
+{% endif %}
+{% if clearance %}
+<h3>Clearance — {{ clearance.strength }}</h3>
+{% if clearance.clause_verbatim %}<blockquote class="mut">{{ clearance.clause_verbatim }}</blockquote>{% endif %}
+{% endif %}
+{% if salary and salary.confidence != 'ABSENT' %}
+<h3>Salary</h3>
+<p>base {{ salary.base_salary_min or '?' }}{% if salary.base_salary_max %}–{{ salary.base_salary_max }}{% endif %}
+   · package {{ salary.total_package_min }} · {{ salary.confidence }} · {{ salary.period }}</p>
+{% endif %}
+
+<h3>Timeline</h3>
+<table><tr><th>When</th><th>Actor</th><th>Action</th><th>Detail</th></tr>
+{% for e in events %}
+<tr><td class="mut">{{ e.at_sydney }}</td><td>{{ e.actor }}</td><td>{{ e.action }}</td>
+    <td class="mut">{{ e.detail }}</td></tr>
+{% else %}<tr><td colspan="4" class="mut">no events</td></tr>{% endfor %}
+</table>
+
+<h3>Description</h3>
+<pre style="white-space:pre-wrap">{{ description or '' }}</pre>
+{% endblock %}
