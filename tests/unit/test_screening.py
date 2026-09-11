@@ -56,6 +56,33 @@ def test_salary_daily_flagged():
     assert s["period"] == "DAILY" and s["confidence"] == "INFERRED"
 
 
+@pytest.mark.parametrize("text", [
+    "We are a team of 200 engineers building payments infrastructure.",
+    "Join our 50 person startup. Great culture.",
+    "Latitude.sh was founded in 2019 and serves 120 customers.",
+    "You will work 38 hours per week across a 4 day week.",
+    "Leave accrues over 365 days a year.",
+])
+def test_bare_numbers_are_not_salaries(text):
+    """A description number with no money marker must not become a salary:
+    it satisfies salary_is_mandatory and can trip SALARY_BELOW_MINIMUM."""
+    s = salary.parse(text)
+    assert s["confidence"] == "ABSENT", f"{text!r} -> {s['base_salary_min']}"
+    assert s["base_salary_min"] is None
+
+
+def test_salary_found_after_leading_noise():
+    """The marker rule must skip the noise number, not give up at it."""
+    s = salary.parse("Founded in 2019, a team of 50. Offering $95,000 + super.")
+    assert s["confidence"] == "STATED" and s["base_salary_min"] == 95000
+
+
+def test_hourly_and_daily_still_parse():
+    assert salary.parse("$55 per hour")["period"] == "HOURLY"
+    assert salary.parse("$45 an hour")["period"] == "HOURLY"
+    assert salary.parse("$650 a day")["period"] == "DAILY"
+
+
 def test_package_vs_plus_super_ordering():
     a = salary.parse("$80k package")["total_package_min"]
     b = salary.parse("$78,000 + super")["total_package_min"]

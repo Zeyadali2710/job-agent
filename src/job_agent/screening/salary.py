@@ -5,8 +5,11 @@ import re
 MONEY = r"\$?\s*(\d{2,3}(?:[,\.]\d{3})*|\d{2,3})\s*(k\b)?"
 RANGE = re.compile(rf"{MONEY}\s*(?:-|–|to)\s*{MONEY}", re.I)
 SINGLE = re.compile(MONEY, re.I)
-DAILY = re.compile(r"\$?\s*(\d{3,4})\s*(?:/|per\s*)?\s*(?:day|d\b|daily)", re.I)
-HOURLY = re.compile(r"\$?\s*(\d{2,3}(?:\.\d{2})?)\s*(?:/|per\s*)?\s*(?:hour|hr\b|hourly)", re.I)
+# The rate marker (/ per / a) is MANDATORY. With it optional, "38 hours per week"
+# parsed as $38/hour and "365 days" as a $365 day rate — both appear in almost
+# every ad.
+DAILY = re.compile(r"\$?\s*(\d{3,4})\s*(?:/|per\s+|a\s+)\s*(?:day|daily)\b", re.I)
+HOURLY = re.compile(r"\$?\s*(\d{2,3}(?:\.\d{2})?)\s*(?:/|per\s+|an?\s+)\s*(?:hour|hr)\b", re.I)
 PLUS_SUPER = re.compile(r"\+\s*super", re.I)
 PACKAGE = re.compile(r"\b(package|inclusive of super|incl\.? super|total remuneration|TRP)\b", re.I)
 OTE = re.compile(r"\bOTE\b", re.I)
@@ -24,6 +27,18 @@ def _num(raw: str, k: str | None) -> int:
     if v < 1000:
         v *= 1000
     return int(v)
+
+
+def _has_money_marker(text: str, m: re.Match, num: int, k: int) -> bool:
+    """A bare 2-3 digit number is not a salary. "a team of 200 engineers" and
+    "founded in 2019" (which matches as 201) both parsed as six-figure STATED
+    salaries. Require a real money marker: a k suffix, a thousands separator,
+    or a leading $."""
+    if m.group(k):
+        return True
+    if "," in m.group(num) or "." in m.group(num):
+        return True
+    return text[:m.start(num)].rstrip().endswith("$")
 
 
 def parse(text: str | None, super_rate: float = DEFAULT_SUPER) -> dict:
@@ -50,12 +65,18 @@ def parse(text: str | None, super_rate: float = DEFAULT_SUPER) -> dict:
         return out
 
     lo = hi = None
-    if m := RANGE.search(text):
-        lo, hi = _num(m.group(1), m.group(2)), _num(m.group(3), m.group(4))
-    elif m := SINGLE.search(text):
-        v = _num(m.group(1), m.group(2))
-        if 30000 <= v <= 500000:
-            lo = v
+    for m in RANGE.finditer(text):
+        if _has_money_marker(text, m, 1, 2) or _has_money_marker(text, m, 3, 4):
+            lo, hi = _num(m.group(1), m.group(2)), _num(m.group(3), m.group(4))
+            break
+    if lo is None:
+        for m in SINGLE.finditer(text):
+            if not _has_money_marker(text, m, 1, 2):
+                continue
+            v = _num(m.group(1), m.group(2))
+            if 30000 <= v <= 500000:
+                lo = v
+            break
 
     if lo is None:
         return out
