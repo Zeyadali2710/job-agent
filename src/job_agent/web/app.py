@@ -4,34 +4,23 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import create_async_engine
 
 from job_agent.core.config import get_settings
+from job_agent.core.db import engine
 
 settings = get_settings()
-engine = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global engine
-    engine = create_async_engine(
-        settings.database_url,
-        pool_size=5,
-        max_overflow=5,
-        pool_pre_ping=True,      # validate a pooled connection before handing it out
-        pool_recycle=1800,       # never reuse a connection older than 30 minutes
-        pool_timeout=10,
-        connect_args={
-            "timeout": 5,
-            "server_settings": {
-                "application_name": "job-agent-api",
-                "timezone": "UTC",
-            },
-        },
-    )
+    # One pool per process. This used to build a second engine of its own
+    # (5+5) alongside core.db's (4+4), so the api container could hold 18
+    # connections against a 35-connection budget for the whole system.
+    # pool_pre_ping, pool_recycle and the UTC server_settings all live in
+    # core.db.engine() -- see Phase 3 §0.6.
+    engine()
     yield
-    await engine.dispose()
+    await engine().dispose()
 
 
 app = FastAPI(title="Job Agent", lifespan=lifespan)
@@ -48,7 +37,7 @@ async def health():
     }
     try:
         async with asyncio.timeout(3):
-            async with engine.connect() as conn:
+            async with engine().connect() as conn:
                 checks["role"] = (await conn.execute(text("SELECT current_user"))).scalar()
                 checks["schema_version"] = (
                     await conn.execute(text("SELECT version_num FROM app.alembic_version"))
