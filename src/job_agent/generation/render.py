@@ -35,7 +35,10 @@ SELECT d.id, d.application_id, d.kind, d.content, d.validator_state,
   LEFT JOIN app.companies c ON c.id = g.company_id
  WHERE d.path IS NULL
    AND d.validator_state = 'PASSED'
-   AND (:app_id IS NULL OR d.application_id = :app_id)
+   -- Cast both uses: a bare `:p IS NULL` is an asyncpg
+   -- AmbiguousParameterError, same as core.queue's kind filter.
+   AND (CAST(:app_id AS bigint) IS NULL
+        OR d.application_id = CAST(:app_id AS bigint))
  ORDER BY d.id
  LIMIT :n
 """)
