@@ -14,6 +14,8 @@ from job_agent.workers.discovery import poll_source
 from job_agent.pipeline.run import dedupe_pending
 from job_agent.pipeline.screen import screen_pending
 from job_agent.pipeline.score import score_pending
+from job_agent.pipeline.enrich import enrich_pending
+from job_agent.notifications.matches import notify_high_matches
 
 WORKER = os.environ.get("WORKER_NAME", "worker-1")
 _stop = asyncio.Event()
@@ -22,7 +24,9 @@ HANDLERS = {
     "poll_source": lambda p: poll_source(p["source"]),
     "dedupe": lambda p: dedupe_pending(p.get("limit", 200)),
     "screen": lambda p: screen_pending(p.get("limit", 200)),
+    "enrich": lambda p: enrich_pending(p.get("limit", 25)),
     "score": lambda p: score_pending(p.get("limit", 200)),
+    "notify_matches": lambda p: notify_high_matches(p.get("limit", 20)),
     "daily_summary": lambda p: daily_summary(),
 }
 

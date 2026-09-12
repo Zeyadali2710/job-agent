@@ -217,12 +217,19 @@ def effective_version(weights: Mapping) -> str:
     return f"{SCORER_VERSION}+{hashlib.sha256(blob.encode()).hexdigest()[:8]}"
 
 
+# Needs-scoring, not merely never-scored. Enrichment fills job_analyses.skills
+# -- the input to skill_overlap -- and necessarily lands after the first score,
+# because every free stage runs before a token is spent. A job whose analysis
+# is newer than its score is stale and must be recomputed.
 UNSCORED = text("""
 SELECT g.id
   FROM app.job_groups g
+  LEFT JOIN app.job_scores s
+         ON s.job_group_id = g.id AND s.scorer_version = :ver
  WHERE g.status IN ('READY', 'REVIEW_REQUIRED')
-   AND NOT EXISTS (SELECT 1 FROM app.job_scores s
-                    WHERE s.job_group_id = g.id AND s.scorer_version = :ver)
+   AND (s.id IS NULL
+        OR EXISTS (SELECT 1 FROM app.job_analyses a
+                    WHERE a.job_group_id = g.id AND a.created_at > s.created_at))
  ORDER BY g.id
  LIMIT :n
 """)
@@ -245,13 +252,25 @@ SELECT f.body FROM app.profile_facts f
  WHERE v.is_active AND f.kind = 'skill'
 """)
 
+# Updated in place for the same version, so recomputing after enrichment
+# replaces the stale score rather than being silently dropped. created_at moves
+# too, which is what current_job_scores orders by and what makes the
+# needs-scoring check above terminate.
 INSERT_SCORE = text("""
 INSERT INTO app.job_scores
   (job_group_id, base_score, llm_adjustment, score, band, scorer_version)
 VALUES (:g, :base, 0, :score, :band, :ver)
-ON CONFLICT (job_group_id, scorer_version) DO NOTHING
+ON CONFLICT (job_group_id, scorer_version) DO UPDATE
+  SET base_score = EXCLUDED.base_score,
+      score      = EXCLUDED.score,
+      band       = EXCLUDED.band,
+      created_at = now()
 RETURNING id
 """)
+
+# The evidence belongs to the score; replacing one replaces the other.
+# ja_worker gets DELETE on score_features in 0009 for exactly this.
+CLEAR_FEATURES = text("DELETE FROM app.score_features WHERE score_id = :s")
 
 INSERT_FEATURE = text("""
 INSERT INTO app.score_features (score_id, feature, weight, value, contribution, evidence)
@@ -335,6 +354,7 @@ async def score_pending(limit: int = 200) -> dict:
             if sid is None:          # raced with another worker; its rows stand
                 counts["skipped"] += 1
                 continue
+            await conn.execute(CLEAR_FEATURES, {"s": sid})
             for f in features:
                 await conn.execute(INSERT_FEATURE, {
                     "s": sid, "f": f["feature"], "w": f["weight"], "v": f["value"],

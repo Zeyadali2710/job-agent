@@ -1,0 +1,146 @@
+"""Extraction prompt, the call path, and the HIGH_MATCH_JOB payload.
+
+The Anthropic client is stubbed, so the request shape and the cost arithmetic
+are exercised without a network or a key -- the same approach the Discord
+failure paths use.
+"""
+import json
+from types import SimpleNamespace
+
+import pytest
+
+from job_agent.ai import client as ai
+from job_agent.ai.prompts import extract as prompt
+from job_agent.notifications.matches import DEFAULT_MIN_SCORE, salary_text
+
+
+# ------------------------------------------------------------------- prompt
+
+def test_the_extraction_prompt_contains_no_profile_data():
+    """Extraction compares nothing against you -- the input is the ad alone.
+    The strongest possible answer to "could this leak my details" is that the
+    prompt has no field to put them in."""
+    user = prompt.build_user("Engineer", "Acme", "We need Python.")
+    blob = (prompt.SYSTEM + user).lower()
+    for token in ("tfn", "passport", "visa", "referee", "date of birth",
+                  "address", "phone"):
+        assert token not in blob
+
+
+def test_long_descriptions_are_trimmed_to_cap_input_cost():
+    body = "x" * (prompt.MAX_DESCRIPTION_CHARS + 5000)
+    user = prompt.build_user("Engineer", "Acme", body)
+    assert len(user) < prompt.MAX_DESCRIPTION_CHARS + 500
+    assert "[truncated]" in user
+
+
+def test_build_user_survives_a_missing_description():
+    assert prompt.build_user("Engineer", None, None)
+
+
+def test_schema_forbids_extra_keys_and_requires_the_two_that_matter():
+    """skills feeds skill_overlap and requirements feeds the card. Everything
+    else is a bonus, so only those two are required -- a partial extraction is
+    better than a refused one."""
+    assert prompt.SCHEMA["additionalProperties"] is False
+    assert set(prompt.SCHEMA["required"]) == {"skills", "requirements"}
+
+
+def test_schema_caps_list_lengths():
+    """An unbounded array is an unbounded output-token bill, and output tokens
+    are the expensive ones."""
+    for key in ("skills", "requirements", "degree_requirements"):
+        assert prompt.SCHEMA["properties"][key]["maxItems"] > 0
+
+
+def test_the_grad_window_is_nullable_because_it_is_a_two_sided_check():
+    """Architecture 6.3: "must have graduated within the last 2 years" can
+    exclude you for graduating too long ago. Absent must be distinguishable
+    from zero."""
+    assert "null" in prompt.SCHEMA["properties"]["graduation_window_years"]["type"]
+
+
+# --------------------------------------------------------------- call path
+
+class StubMessages:
+    def __init__(self, payload, tokens=(1000, 200), stop_reason="end_turn"):
+        self.payload, self.tokens, self.stop_reason = payload, tokens, stop_reason
+        self.last_kwargs = None
+
+    def create(self, **kwargs):
+        self.last_kwargs = kwargs
+        return SimpleNamespace(
+            stop_reason=self.stop_reason,
+            content=[SimpleNamespace(type="text", text=json.dumps(self.payload))],
+            usage=SimpleNamespace(input_tokens=self.tokens[0],
+                                  output_tokens=self.tokens[1]),
+        )
+
+
+def stub(payload, **kw):
+    return SimpleNamespace(messages=StubMessages(payload, **kw))
+
+
+def test_call_json_parses_and_prices_the_response():
+    client = stub({"skills": ["python"], "requirements": ["3 years"]})
+    data, usage = ai.call_json(client, model=ai.HAIKU, system="s", user="u",
+                               schema=prompt.SCHEMA, fx=1.55)
+    assert data["skills"] == ["python"]
+    assert usage.tokens_in == 1000 and usage.tokens_out == 200
+    assert usage.cost_aud == ai.cost_aud(ai.HAIKU, 1000, 200, 1.55)
+
+
+def test_call_json_sends_the_schema_as_structured_output():
+    client = stub({"skills": [], "requirements": []})
+    ai.call_json(client, model=ai.HAIKU, system="s", user="u",
+                 schema=prompt.SCHEMA, fx=1.55)
+    sent = client.messages.last_kwargs["output_config"]["format"]
+    assert sent["type"] == "json_schema"
+    assert sent["schema"]["required"] == ["skills", "requirements"]
+
+
+def test_haiku_is_not_sent_an_effort_setting():
+    """Haiku 4.5 rejects output_config.effort with a 400."""
+    client = stub({"skills": [], "requirements": []})
+    ai.call_json(client, model=ai.HAIKU, system="s", user="u",
+                 schema=prompt.SCHEMA, fx=1.55)
+    assert "effort" not in client.messages.last_kwargs["output_config"]
+
+
+def test_sonnet_does_get_an_effort_setting():
+    client = stub({"skills": [], "requirements": []})
+    ai.call_json(client, model=ai.SONNET, system="s", user="u",
+                 schema=prompt.SCHEMA, fx=1.55)
+    assert client.messages.last_kwargs["output_config"]["effort"] == "low"
+
+
+def test_a_refusal_raises_rather_than_writing_an_empty_analysis():
+    """stop_reason 'refusal' returns HTTP 200 with no usable content. Reading
+    content without checking it would store an empty skills list and quietly
+    score every refused job as having no requirements."""
+    client = stub({"skills": []}, stop_reason="refusal")
+    with pytest.raises(RuntimeError):
+        ai.call_json(client, model=ai.HAIKU, system="s", user="u",
+                     schema=prompt.SCHEMA, fx=1.55)
+
+
+# ---------------------------------------------------------------- the card
+
+def test_high_match_threshold_matches_the_architecture():
+    assert DEFAULT_MIN_SCORE == 80
+
+
+@pytest.mark.parametrize("salary,expected", [
+    ({"confidence": "STATED", "base_salary_min": 90000, "base_salary_max": 110000,
+      "total_package_min": 100800}, "$90,000-110,000 (package $100,800)"),
+    ({"confidence": "STATED", "base_salary_min": 90000, "total_package_min": 100800},
+     "$90,000 (package $100,800)"),
+    ({"confidence": "ABSENT"}, None),
+    ({}, None),
+    (None, None),
+    ('{"confidence": "STATED", "base_salary_min": 80000}', "$80,000"),
+])
+def test_salary_text_renders_or_stays_silent(salary, expected):
+    """After the money-marker fix most ads are genuinely ABSENT. The card must
+    print nothing rather than a fabricated figure."""
+    assert salary_text(salary) == expected

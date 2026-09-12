@@ -43,6 +43,11 @@ class Settings(BaseSettings):
         )
 
     @property
+    def anthropic_api_key(self) -> str:
+        """Lazy, like discord_webhook: only the worker mounts this secret."""
+        return _read_secret("anthropic_api_key")
+
+    @property
     def discord_webhook(self) -> str:
         """Read lazily, like _password: only the notifier mounts this secret,
         and every other service must still start without it."""

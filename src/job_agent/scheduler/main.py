@@ -41,6 +41,14 @@ async def enqueue_score() -> None:
     await _enqueue_kind("score")
 
 
+async def enqueue_enrich() -> None:
+    await _enqueue_kind("enrich")
+
+
+async def enqueue_notify_matches() -> None:
+    await _enqueue_kind("notify_matches")
+
+
 async def daily_summary() -> None:
     async with tx() as conn:
         await enqueue(conn, "daily_summary", {}, dedupe_key=None, priority=200)
@@ -71,9 +79,16 @@ def build() -> AsyncIOScheduler:
                   id="dedupe", replace_existing=True)
     sched.add_job(enqueue_screen, CronTrigger(minute="*/10", timezone=SYDNEY),
                   id="screen", replace_existing=True)
-    # Offset from screen: scoring reads what screening just wrote.
+    # The pipeline runs in spend order: screen (free) at :00, enrich (paid,
+    # survivors only) at :02, score (free, reads the enrichment) at :05,
+    # notify at :07. Each stage reads what the one before it wrote.
+    sched.add_job(enqueue_enrich, CronTrigger(minute="2,12,22,32,42,52", timezone=SYDNEY),
+                  id="enrich", replace_existing=True)
     sched.add_job(enqueue_score, CronTrigger(minute="5,15,25,35,45,55", timezone=SYDNEY),
                   id="score", replace_existing=True)
+    sched.add_job(enqueue_notify_matches,
+                  CronTrigger(minute="7,17,27,37,47,57", timezone=SYDNEY),
+                  id="notify_matches", replace_existing=True)
     return sched
 
 
