@@ -12,3 +12,4 @@ salary_min: 70000
 salary_target: 90000
 salary_is_mandatory: false
 company_blacklist: []
+uncertain_policy: proceed_with_flag   # proceed_with_flag | review

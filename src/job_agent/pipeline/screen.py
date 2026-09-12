@@ -19,6 +19,45 @@ async def _profile(conn) -> dict:
     return out
 
 
+def decide(prefs: dict, *, wr_class: str, cl_block: bool, sen_class: str,
+           loc_class: str, conflict: bool, sal: dict) -> tuple[str, str | None]:
+    """The hard screen. Pure -- no DB, no I/O -- so it is testable directly.
+
+    Order is by certainty: a hard incompatibility outranks a preference, and
+    a preference outranks an ambiguity. Returns (status, screen_reason).
+    """
+    # ---- hard gates, in order of certainty ----
+    if wr_class == "INCOMPATIBLE":
+        return "SCREENED_OUT", "WORK_RIGHTS_INCOMPATIBLE"
+    if cl_block:
+        return "SCREENED_OUT", "CLEARANCE_CITIZENSHIP_CONFLICT"
+    if sen_class in ("SENIOR", "LEAD"):
+        return "SCREENED_OUT", "SENIORITY_TOO_HIGH"
+    accepted = set(prefs.get("location_classes_accepted", []))
+    if loc_class == "UNKNOWN":
+        return "REVIEW_REQUIRED", "LOCATION_UNKNOWN"
+    if accepted and loc_class not in accepted:
+        if loc_class == "OTHER_CAPITAL" and prefs.get("allow_relocation"):
+            pass
+        else:
+            return "SCREENED_OUT", f"LOCATION_{loc_class}"
+    if conflict:
+        return "REVIEW_REQUIRED", "SENIORITY_CONFLICT"
+    if prefs.get("salary_is_mandatory") and sal["confidence"] == "ABSENT":
+        return "SCREENED_OUT", "SALARY_NOT_STATED"
+    if (sal["total_package_min"] or 0) and prefs.get("salary_min") \
+            and sal["total_package_min"] < prefs["salary_min"] * 0.9:
+        return "SCREENED_OUT", "SALARY_BELOW_MINIMUM"
+    # Architecture 6: "Never auto-reject for ambiguity ... a large share of AU
+    # ads simply omit the clause." UNCERTAIN means no work-rights language was
+    # found at all, which for a citizen profile is the normal case, not a
+    # concern. The assessment row is already written above, so the concern is
+    # recorded and renders on the dashboard either way.
+    if wr_class == "UNCERTAIN" and prefs.get("uncertain_policy") == "review":
+        return "REVIEW_REQUIRED", "WORK_RIGHTS_UNCERTAIN"
+    return "READY", None
+
+
 async def screen_group(conn, gid: int, prof: dict) -> tuple[str, str | None]:
     p = (await conn.execute(text("""
         SELECT p.title, p.description, p.location_raw, p.employment_type
@@ -46,6 +85,13 @@ async def screen_group(conn, gid: int, prof: dict) -> tuple[str, str | None]:
         {"l": loc_class, "d": days, "s": sen_class, "y": min_years,
          "sal": json.dumps(sal), "g": gid})
 
+    # job_groups.location_class is a denormalised copy of the canonical
+    # posting's, and the dashboard reads the group's. Without this the two
+    # drift apart again the moment a re-screen changes the classification.
+    await conn.execute(text(
+        "UPDATE app.job_groups SET location_class=:l WHERE id=:g"),
+        {"l": loc_class, "g": gid})
+
     await conn.execute(text("""
         INSERT INTO app.work_right_assessments (job_group_id, classification, clause_verbatim, decided_by)
         VALUES (:g,:c,:v,'RULE')"""), {"g": gid, "c": wr_class, "v": wr_clause})
@@ -55,31 +101,9 @@ async def screen_group(conn, gid: int, prof: dict) -> tuple[str, str | None]:
             VALUES (:g,:d,:s,:v,'RULE')"""),
             {"g": gid, "d": cl_detected, "s": cl_strength, "v": cl_clause})
 
-    # ---- hard gates, in order of certainty ----
-    if wr_class == "INCOMPATIBLE":
-        return "SCREENED_OUT", "WORK_RIGHTS_INCOMPATIBLE"
-    if cl_block:
-        return "SCREENED_OUT", "CLEARANCE_CITIZENSHIP_CONFLICT"
-    if sen_class in ("SENIOR", "LEAD"):
-        return "SCREENED_OUT", "SENIORITY_TOO_HIGH"
-    accepted = set(prefs.get("location_classes_accepted", []))
-    if loc_class == "UNKNOWN":
-        return "REVIEW_REQUIRED", "LOCATION_UNKNOWN"
-    if accepted and loc_class not in accepted:
-        if loc_class == "OTHER_CAPITAL" and prefs.get("allow_relocation"):
-            pass
-        else:
-            return "SCREENED_OUT", f"LOCATION_{loc_class}"
-    if conflict:
-        return "REVIEW_REQUIRED", "SENIORITY_CONFLICT"
-    if prefs.get("salary_is_mandatory") and sal["confidence"] == "ABSENT":
-        return "SCREENED_OUT", "SALARY_NOT_STATED"
-    if (sal["total_package_min"] or 0) and prefs.get("salary_min") \
-            and sal["total_package_min"] < prefs["salary_min"] * 0.9:
-        return "SCREENED_OUT", "SALARY_BELOW_MINIMUM"
-    if wr_class == "UNCERTAIN":
-        return "REVIEW_REQUIRED", "WORK_RIGHTS_UNCERTAIN"
-    return "READY", None
+    return decide(prefs, wr_class=wr_class, cl_block=cl_block,
+                  sen_class=sen_class, loc_class=loc_class,
+                  conflict=conflict, sal=sal)
 
 
 def work_rights_classify(blob: str, status: str):

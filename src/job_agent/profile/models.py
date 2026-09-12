@@ -101,6 +101,9 @@ class Preferences(Ided):
     salary_target: int
     salary_is_mandatory: bool = False
     company_blacklist: list[str] = []
+    # Architecture 6. Literal, not str: a typo must fail in the profile
+    # validator rather than silently select the stricter branch.
+    uncertain_policy: Literal["proceed_with_flag", "review"] = "proceed_with_flag"
 
 
 class StarAnswer(Ided):
