@@ -1,0 +1,192 @@
+"""Deterministic scoring. Architecture 14 step 6: a weighted score reproducible
+from the database alone, plus a bounded LLM adjustment of at most +/-10.
+
+Nothing here calls a model. The LLM may nudge the result later, and
+job_scores.llm_adjustment carries a CHECK constraint enforcing the bound, so a
+prompt injection cannot turn a 40 into a 90.
+
+The weights encode *your* preferences, and they come from preferences.yaml
+rather than from anyone's opinion about what a good job looks like. They live in
+app.settings so tuning them does not need a deploy.
+"""
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
+from datetime import datetime, timezone
+
+SCORER_VERSION = "1.0.0"
+
+# The positive weights sum to exactly 100, grad_program included. An earlier
+# cut treated it as a bonus on top of 100, which meant a strong job hit the
+# 0..100 clamp and every penalty below it became invisible -- two jobs that
+# differed by a real concern both scored 100. Nothing may exceed 100 before
+# clamping, or the clamp silently destroys discrimination at the top of the
+# list, which is the only part of the list you read.
+DEFAULT_WEIGHTS: dict[str, float] = {
+    "seniority_match": 28,
+    "location_rank": 18,
+    "salary_vs_target": 14,
+    "skill_overlap": 14,
+    "employment_type_match": 8,
+    "freshness": 8,
+    "grad_program": 10,
+    "work_rights_uncertain": -5,
+}
+
+# HIGH is 80 to line up with the HIGH_MATCH_JOB notification threshold in
+# architecture 7. The card's colour bands (85/70) are a separate, finer scale
+# applied to the final score in cards.py.
+BAND_HIGH = 80
+BAND_MEDIUM = 60
+
+FRESHNESS_DAYS = 30
+# Neutral, not zero. A silent job ad is not a worse job ad -- the same reasoning
+# that stopped UNCERTAIN work rights from holding a job in review.
+UNKNOWN = 0.5
+
+
+def _clamp(v: float, lo: float = 0.0, hi: float = 1.0) -> float:
+    return max(lo, min(hi, v))
+
+
+def _seniority(job: Mapping, prefs: Mapping) -> tuple[float, str]:
+    targets = list(prefs.get("seniority_targets") or [])
+    cls = job.get("seniority_class")
+    if not cls or cls == "UNKNOWN":
+        return UNKNOWN, "seniority not stated in the title"
+    if cls in targets:
+        return 1.0, f"{cls} is in your targets {targets}"
+    return 0.0, f"{cls} is outside your targets {targets}"
+
+
+def _location(job: Mapping, prefs: Mapping) -> tuple[float, str]:
+    accepted = list(prefs.get("location_classes_accepted") or [])
+    cls = job.get("location_class")
+    if cls in accepted:
+        idx = accepted.index(cls)
+        # Linear 1.0 -> 0.5 across the list: every accepted location is good,
+        # the order just says which you prefer.
+        value = 1.0 - 0.5 * (idx / max(1, len(accepted) - 1))
+        return value, f"{cls} is preference {idx + 1} of {len(accepted)}"
+    if not cls or cls == "UNKNOWN":
+        return UNKNOWN, "location could not be classified"
+    return 0.0, f"{cls} is not in your accepted locations"
+
+
+def _salary(job: Mapping, prefs: Mapping) -> tuple[float, str]:
+    target = prefs.get("salary_target") or 0
+    sal = job.get("salary") or {}
+    total = sal.get("total_package_min")
+    if not target or not total:
+        return UNKNOWN, "no salary stated"
+    value = _clamp(total / target)
+    return value, f"package {int(total):,} against target {int(target):,}"
+
+
+def _skills(job: Mapping, prefs: Mapping) -> tuple[float, str]:
+    """Needs the LLM extraction from job_analyses. Neutral before enrichment,
+    so the scorer is useful on its own and improves when enrichment lands."""
+    job_skills = {s.lower() for s in (job.get("job_skills") or [])}
+    mine = {s.lower() for s in (job.get("profile_skills") or [])}
+    if not job_skills:
+        return UNKNOWN, "requirements not yet extracted"
+    hit = job_skills & mine
+    # Capped at 8: a job listing 20 skills should not need all 20 matched.
+    value = _clamp(len(hit) / min(len(job_skills), 8))
+    shown = ", ".join(sorted(hit)[:5]) or "none"
+    return value, f"{len(hit)} of {len(job_skills)} required skills matched: {shown}"
+
+
+def _employment(job: Mapping, prefs: Mapping) -> tuple[float, str]:
+    accepted = list(prefs.get("employment_types") or [])
+    et = job.get("employment_type")
+    if not et:
+        return UNKNOWN, "employment type not stated"
+    if et in accepted:
+        return 1.0, f"{et} is in {accepted}"
+    return 0.0, f"{et} is not in {accepted}"
+
+
+def _freshness(job: Mapping, prefs: Mapping, now: datetime) -> tuple[float, str]:
+    """Architecture 0.2: freshness is a scoring input, never a hard gate."""
+    posted = job.get("posted_at")
+    if not posted:
+        return UNKNOWN, "posting date unknown"
+    if posted.tzinfo is None:
+        posted = posted.replace(tzinfo=timezone.utc)
+    days = (now - posted).total_seconds() / 86400
+    return _clamp(1.0 - days / FRESHNESS_DAYS), f"posted {int(days)} days ago"
+
+
+def _grad(job: Mapping, prefs: Mapping) -> tuple[float, str]:
+    if job.get("is_grad_program"):
+        return 1.0, "identified as a graduate program"
+    return 0.0, "not a graduate program"
+
+
+def _wr_uncertain(job: Mapping, prefs: Mapping) -> tuple[float, str]:
+    """A negative weight. UNCERTAIN no longer blocks the job (architecture 6
+    says never auto-reject for ambiguity), so it lands here instead -- a small
+    push down the list and a line in the card's concerns."""
+    if job.get("work_rights_class") == "UNCERTAIN":
+        return 1.0, "the ad says nothing about work rights"
+    return 0.0, "work rights addressed"
+
+
+def score(job: Mapping, prefs: Mapping, weights: Mapping | None = None,
+          now: datetime | None = None) -> tuple[float, str, list[dict]]:
+    """Return (base_score, band, features).
+
+    features are ready to insert as score_features rows, each carrying the
+    evidence string the Discord card and the dashboard render -- so "why it
+    matches" is generated from data rather than written as prose.
+    """
+    w = {**DEFAULT_WEIGHTS, **(weights or {})}
+    now = now or datetime.now(timezone.utc)
+
+    computed = [
+        ("seniority_match", *_seniority(job, prefs)),
+        ("location_rank", *_location(job, prefs)),
+        ("salary_vs_target", *_salary(job, prefs)),
+        ("skill_overlap", *_skills(job, prefs)),
+        ("employment_type_match", *_employment(job, prefs)),
+        ("freshness", *_freshness(job, prefs, now)),
+        ("grad_program", *_grad(job, prefs)),
+        ("work_rights_uncertain", *_wr_uncertain(job, prefs)),
+    ]
+
+    features = []
+    total = 0.0
+    for name, value, evidence in computed:
+        weight = float(w.get(name, 0))
+        contribution = weight * value
+        total += contribution
+        features.append({
+            "feature": name,
+            "weight": round(weight, 3),
+            "value": round(value, 3),
+            "contribution": round(contribution, 3),
+            "evidence": evidence,
+        })
+
+    base = round(_clamp(total, 0.0, 100.0), 2)
+    band = "HIGH" if base >= BAND_HIGH else "MEDIUM" if base >= BAND_MEDIUM else "LOW"
+    return base, band, features
+
+
+def final_score(base: float, llm_adjustment: float = 0.0) -> float:
+    """The LLM may move the score by at most +/-10, and never outside 0..100.
+    job_scores has CHECK constraints for both; this keeps the Python side from
+    ever offering a value the database would reject."""
+    adj = max(-10.0, min(10.0, float(llm_adjustment)))
+    return round(_clamp(base + adj, 0.0, 100.0), 2)
+
+
+def why_and_concerns(features: Sequence[Mapping], n: int = 5) -> tuple[list[str], list[str]]:
+    """Split the evidence into the card's two lists. Positive contributions are
+    reasons, zero-or-negative ones are concerns, each ordered by how much they
+    actually moved the score."""
+    ranked = sorted(features, key=lambda f: f["contribution"], reverse=True)
+    why = [f["evidence"] for f in ranked if f["contribution"] > 0][:n]
+    concerns = [f["evidence"] for f in reversed(ranked) if f["contribution"] <= 0][:n]
+    return why, concerns
