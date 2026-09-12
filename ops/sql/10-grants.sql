@@ -13,6 +13,9 @@ GRANT INSERT, UPDATE ON
   app.company_rules, app.job_groups, app.notifications
   TO ja_api;
 GRANT INSERT ON app.events TO ja_api;
+-- Approving an application enqueues a submit item. INSERT only: the API
+-- must never claim work, which needs UPDATE.
+GRANT INSERT ON app.work_items TO ja_api;
 
 -- ---------------------------------------------------------------- worker
 GRANT INSERT, UPDATE ON
