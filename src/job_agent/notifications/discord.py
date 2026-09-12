@@ -7,6 +7,7 @@ own X-RateLimit-Remaining / Retry-After always wins over our local estimate.
 from __future__ import annotations
 
 import asyncio
+import re
 
 import httpx
 
@@ -27,6 +28,18 @@ TIMEOUT = 10.0
 # the row back to the outbox and let the 1m/5m/15m/1h/6h backoff handle it.
 MAX_SLEEP = 5.0
 
+
+# Phase 2 creates /opt/job-agent/secrets/discord_webhook holding the literal
+# string PLACEHOLDER_SET_IN_PHASE_10. _read_secret only checks the file exists
+# and is non-empty, so a placeholder passes: the worker would start, then every
+# send would fail as an unparseable URL, be classified Transient, and burn all
+# 8 attempts before going DEAD. Check the shape at startup instead.
+WEBHOOK_URL_RE = re.compile(
+    r"^https://(?:\w+\.)*discord(?:app)?\.com/api/webhooks/\d+/[\w-]+/?$")
+
+
+def is_webhook_url(value: str) -> bool:
+    return bool(WEBHOOK_URL_RE.match((value or "").strip()))
 
 class RateLimited(RuntimeError):
     """429 asking for longer than MAX_SLEEP. Retryable, not a failure."""

@@ -220,3 +220,27 @@ def test_batch_cannot_outlast_the_idle_transaction_timeout():
     from job_agent.workers import notifier
     worst_case = notifier.BATCH * (discord.TIMEOUT + discord.MAX_SLEEP + discord.TIMEOUT)
     assert worst_case < 120, f"worst-case batch is {worst_case}s against a 120s limit"
+
+
+@pytest.mark.parametrize("value", [
+    "https://discord.com/api/webhooks/123456/tOkEn-SeCrEt",
+    "https://discordapp.com/api/webhooks/1/abc",
+    "https://ptb.discord.com/api/webhooks/1/abc",
+])
+def test_real_webhook_urls_are_accepted(value):
+    assert discord.is_webhook_url(value)
+
+
+@pytest.mark.parametrize("value", [
+    "PLACEHOLDER_SET_IN_PHASE_10",     # what Phase 2 actually seeds the file with
+    "",
+    None,
+    "https://example.com/api/webhooks/1/abc",
+    "http://discord.com/api/webhooks/1/abc",       # plaintext
+    "https://discord.com/api/webhooks/abc/def",    # id must be numeric
+    "https://evil.com/#https://discord.com/api/webhooks/1/a",
+])
+def test_non_webhook_values_are_rejected(value):
+    """A placeholder passes _read_secret -- it exists and is non-empty -- so
+    without this the notifier starts and burns all 8 attempts per row."""
+    assert not discord.is_webhook_url(value)

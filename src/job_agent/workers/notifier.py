@@ -82,6 +82,12 @@ async def main() -> None:
     # Read once, at startup, so a missing secret fails immediately and loudly
     # rather than on the first notification hours later.
     webhook = s.discord_webhook
+    if not discord.is_webhook_url(webhook):
+        # Never echo the value: it is a bearer credential even when wrong.
+        raise RuntimeError(
+            "the discord_webhook secret is not a Discord webhook URL. "
+            "Phase 2 seeded it with a placeholder -- replace "
+            "/opt/job-agent/secrets/discord_webhook with the real URL.")
     hostname = s.tailnet_hostname
     print(f"notifier started: webhook configured, dashboard={hostname or 'unset'}")
 
