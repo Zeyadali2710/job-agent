@@ -5,10 +5,15 @@ from typing import Any
 
 from sqlalchemy import text
 
+# :kinds is NULL for "anything I can handle" and a list for a worker that owns
+# only some kinds. The renderer must not claim a `screen` item, and -- more to
+# the point -- the worker must not claim a `render` item: ja_worker has no USAGE
+# on schema sensitive, so it would fail every one of them eight times.
 CLAIM = text("""
 WITH claimed AS (
   SELECT id FROM app.work_items
    WHERE state = 'PENDING' AND run_after <= now()
+     AND (:kinds IS NULL OR kind = ANY(CAST(:kinds AS text[])))
    ORDER BY priority, run_after
    FOR UPDATE SKIP LOCKED
    LIMIT :n
@@ -33,8 +38,10 @@ async def enqueue(conn, kind: str, payload: dict[str, Any] | None = None,
     return row
 
 
-async def claim(conn, worker: str, n: int = 1):
-    return (await conn.execute(CLAIM, {"worker": worker, "n": n})).all()
+async def claim(conn, worker: str, n: int = 1, kinds: list[str] | None = None):
+    return (await conn.execute(
+        CLAIM, {"worker": worker, "n": n,
+                "kinds": list(kinds) if kinds else None})).all()
 
 
 async def complete(conn, item_id: int) -> None:

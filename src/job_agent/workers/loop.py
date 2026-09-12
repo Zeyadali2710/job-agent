@@ -42,7 +42,7 @@ async def beat(detail: dict) -> None:
 
 async def run_once() -> int:
     async with tx() as conn:
-        items = await claim(conn, WORKER, n=1)
+        items = await claim(conn, WORKER, n=1, kinds=list(HANDLERS))
     if not items:
         return 0
     item = items[0]
