@@ -1,6 +1,9 @@
 id: work_rights.self
-status: CITIZEN          # CITIZEN | PR | TEMP_GRADUATE_485 | STUDENT_500 | REQUIRES_SPONSORSHIP
-citizenship: AU
-clearance_held: null     # null | Baseline | NV1 | NV2 | PV
-clearance_eligible: true # AGSVA requires AU citizenship
-requires_sponsorship: false
+status: TEMP_GRADUATE_485  # CITIZEN | PR | TEMP_GRADUATE_485 | STUDENT_500 | REQUIRES_SPONSORSHIP
+# Only consumer is screening/clearance.py, which asks "is this AU?" -- an AGSVA
+# clearance requires Australian citizenship. XX is ISO 3166's "unspecified";
+# replace it with your real code if the exact country ever needs to matter.
+citizenship: XX
+clearance_held: null        # null | Baseline | NV1 | NV2 | PV
+clearance_eligible: false   # AGSVA requires AU citizenship
+requires_sponsorship: false # 485 carries full work rights for its duration
