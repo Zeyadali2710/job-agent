@@ -27,4 +27,4 @@ restore-test:   ; sudo /opt/job-agent/bin/pg-restore-test.sh
 profile-check: ; docker compose run --rm profile-loader python -m job_agent.profile.loader
 profile-load:  ; docker compose run --rm profile-loader
 .PHONY: test
-test: ; docker compose run --rm worker python -m pytest tests/unit -q
+test: ; docker compose run --rm worker python -m pytest tests/unit -q -p no:cacheprovider

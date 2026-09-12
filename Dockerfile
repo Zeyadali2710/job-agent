@@ -11,6 +11,7 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 
 COPY src/ /app/src/
+COPY pytest.ini /app/pytest.ini
 ENV PYTHONPATH=/app/src
 
 USER app
