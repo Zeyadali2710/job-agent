@@ -324,4 +324,9 @@ async def generate_pending(limit: int = 5, application_id: int | None = None) ->
         for row in rows:
             await enqueue(conn, "render", {"application_id": row["app_id"]},
                           dedupe_key=f"render:{row['app_id']}")
+            # Separate item, not an inline call: answering is a second paid
+            # call, and a failure there must not lose the documents this run
+            # already produced.
+            await enqueue(conn, "answer", {"application_id": row["app_id"]},
+                          dedupe_key=f"answer:{row['app_id']}")
     return counts

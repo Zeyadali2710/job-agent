@@ -1,0 +1,42 @@
+# Application questions to draft answers for.
+#
+# Phases 14 and 15 read the real questions off the employer's form and pass
+# them to generation.answers directly. Until then these are the ones almost
+# every Australian graduate application asks, so the answerer is exercised
+# against real questions rather than waiting for a form reader to exist.
+#
+# `required: true` means an unanswered question blocks submission (architecture
+# 9: "the application cannot be submitted while any required question is
+# unanswered"). Several of these are deliberately expected to come back
+# can_answer: false -- that is the mechanism working, not failing, and each one
+# becomes an open_questions row for you to answer once.
+
+- question_key: why_this_role
+  question_text: Why are you interested in this role?
+  required: true
+
+- question_key: why_this_company
+  question_text: Why do you want to work for this company?
+  required: true
+
+- question_key: relevant_experience
+  question_text: Describe your most relevant experience for this position.
+  required: true
+
+- question_key: technical_strength
+  question_text: What is your strongest technical skill, and what have you built with it?
+  required: false
+
+- question_key: teamwork_example
+  question_text: Describe a time you worked in a team to deliver something under pressure.
+  required: false
+
+# Expected to be unanswerable from the public profile: the salary floor lives
+# in the sensitive schema, which the drafting path structurally cannot read.
+- question_key: salary_expectations
+  question_text: What are your salary expectations?
+  required: false
+
+- question_key: notice_period
+  question_text: What is your notice period or earliest start date?
+  required: false

@@ -18,6 +18,7 @@ from job_agent.pipeline.enrich import enrich_pending
 from job_agent.notifications.matches import notify_high_matches
 from job_agent.generation.draft import draft_applications
 from job_agent.generation.documents import generate_pending
+from job_agent.generation.answers import answer_questions
 
 WORKER = os.environ.get("WORKER_NAME", "worker-1")
 _stop = asyncio.Event()
@@ -34,6 +35,7 @@ HANDLERS = {
     # only role with USAGE on schema sensitive.
     "generate": lambda p: generate_pending(p.get("limit", 5),
                                            p.get("application_id")),
+    "answer": lambda p: answer_questions(p["application_id"]),
     "daily_summary": lambda p: daily_summary(),
 }
 
