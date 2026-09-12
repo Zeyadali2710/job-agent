@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     tz: str = "Australia/Sydney"
 
+    # Not a secret: the MagicDNS name the Discord card deep-links back to.
+    tailnet_hostname: str = ""
+
     postgres_user: str = "ja_api"
     postgres_db: str = "jobagent"
     postgres_host: str = "postgres"
@@ -38,6 +41,12 @@ class Settings(BaseSettings):
             f"postgresql+{driver}://{self.postgres_user}:{self._password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
+
+    @property
+    def discord_webhook(self) -> str:
+        """Read lazily, like _password: only the notifier mounts this secret,
+        and every other service must still start without it."""
+        return _read_secret("discord_webhook")
 
     @property
     def database_url(self) -> str:
