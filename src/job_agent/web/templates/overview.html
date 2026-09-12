@@ -7,6 +7,13 @@
     <td class="{{ 'bad' if w.age_s > 900 else 'ok' }}">{{ w.age_s }}s</td></tr>
 {% else %}<tr><td colspan="3" class="mut">no heartbeats yet</td></tr>{% endfor %}
 </table>
+<h3>Notifications</h3>
+{# Architecture 7: configured-yes/no and last-send status, never the URL. #}
+<table><tr><th>Pending</th><th>Sent</th><th>Dead</th><th>Last sent</th></tr>
+<tr><td>{{ outbox.pending }}</td><td>{{ outbox.sent }}</td>
+    <td class="{{ 'bad' if outbox.dead else 'ok' }}">{{ outbox.dead }}</td>
+    <td class="mut">{{ outbox.last_sent_sydney or 'never' }}</td></tr>
+</table>
 <h3>Sources</h3>
 <table><tr><th>Source</th><th>Circuit</th><th>Failures</th><th>Postings</th></tr>
 {% for s in sources %}

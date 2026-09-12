@@ -82,6 +82,21 @@ async def _stats() -> list[dict]:
     return [{"label": lab, "value": r[k]} for k, lab in labels]
 
 
+async def _outbox() -> dict:
+    """Architecture 7: the dashboard shows that the webhook is configured and
+    the last-send status, never the URL itself."""
+    rows = await q("""
+      SELECT
+        (SELECT count(*) FROM app.notifications WHERE state='PENDING') AS pending,
+        (SELECT count(*) FROM app.notifications WHERE state='SENT')    AS sent,
+        (SELECT count(*) FROM app.notifications WHERE state='DEAD')    AS dead,
+        (SELECT max(sent_at) FROM app.notifications WHERE state='SENT') AS last_sent
+    """)
+    r = dict(rows[0])
+    r["last_sent_sydney"] = syd(r.pop("last_sent"))
+    return r
+
+
 @router.get("/", response_class=HTMLResponse)
 async def overview(request: Request):
     now = datetime.now(timezone.utc)
@@ -94,7 +109,8 @@ async def overview(request: Request):
           FROM app.sources s WHERE s.enabled ORDER BY s.key""")
     return templates.TemplateResponse(
         request, "overview.html",
-        ctx(request, "overview", stats=await _stats(), heartbeats=hb, sources=src))
+        ctx(request, "overview", stats=await _stats(), heartbeats=hb, sources=src,
+            outbox=await _outbox()))
 
 
 @router.get("/partials/stats", response_class=HTMLResponse)

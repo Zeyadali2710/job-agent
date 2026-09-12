@@ -5,6 +5,7 @@ import asyncio
 import json
 import os
 import sys
+from datetime import datetime, timezone
 
 import yaml
 from sqlalchemy import text
@@ -94,17 +95,42 @@ async def circuit_ok(conn, skey: str) -> bool:
     return True
 
 
+NOTIFY_CIRCUIT_OPEN = text("""
+INSERT INTO app.notifications (kind, dedupe_key, payload)
+VALUES ('SYSTEM_ERROR', :key, CAST(:payload AS jsonb))
+ON CONFLICT (dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING
+""")
+
+
 async def record_failure(conn, skey: str, err: str) -> None:
-    await conn.execute(text("""
+    row = (await conn.execute(text("""
         UPDATE app.sources
            SET consecutive_failures = consecutive_failures + 1,
                circuit_state = CASE WHEN consecutive_failures + 1 >= 3 THEN 'OPEN' ELSE circuit_state END,
                circuit_opened_at = CASE WHEN consecutive_failures + 1 >= 3 THEN now() ELSE circuit_opened_at END
-         WHERE key = :k"""), {"k": skey})
+         WHERE key = :k
+     RETURNING circuit_state, consecutive_failures"""), {"k": skey})).first()
     await conn.execute(text(
         "INSERT INTO app.events (entity_type, actor, action, detail) "
         "VALUES ('source', :a, 'fetch_failed', CAST(:d AS jsonb))"),
         {"a": WORKER, "d": json.dumps({"source": skey, "error": err[:500]})})
+
+    # Architecture 7: one SYSTEM_ERROR per circuit-open, not per failure. The
+    # hour bucket in the dedupe key plus the partial unique index on
+    # notifications.dedupe_key gives the "throttled 1/hour/class" for free, so
+    # a flapping source cannot spam the channel.
+    if row and row.circuit_state == "OPEN":
+        await conn.execute(NOTIFY_CIRCUIT_OPEN, {
+            "key": f"system_error:circuit_open:{skey}:"
+                   f"{datetime.now(timezone.utc).strftime('%Y-%m-%dT%H')}",
+            "payload": json.dumps({
+                "title": f"Source circuit open: {skey}",
+                "component": "discovery",
+                "source": skey,
+                "detail": f"{row.consecutive_failures} consecutive failures. "
+                          f"Last error: {err[:300]}",
+            }),
+        })
 
 
 async def poll_source(skey: str) -> tuple[int, int]:

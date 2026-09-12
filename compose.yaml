@@ -17,6 +17,8 @@ secrets:
     file: /opt/job-agent/secrets/ja_worker_password
   ja_scheduler_password:
     file: /opt/job-agent/secrets/ja_scheduler_password
+  ja_notifier_password:
+    file: /opt/job-agent/secrets/ja_notifier_password
   discord_webhook:
     file: /opt/job-agent/secrets/discord_webhook
   anthropic_api_key:
@@ -219,10 +221,38 @@ services:
     command: ["python", "-m", "job_agent.scheduler.main"]
     logging: *default-logging
     networks: [internal]
+  notifier:
+    build: .
+    restart: unless-stopped
+    mem_limit: 192m
+    memswap_limit: 192m
+    cpus: 0.5
+    pids_limit: 128
+    init: true
+    read_only: true
+    tmpfs: [/tmp:size=32m]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    environment:
+      DRY_RUN: ${DRY_RUN}
+      LOG_LEVEL: ${LOG_LEVEL}
+      TZ: UTC
+      POSTGRES_USER: ja_notifier
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: postgres
+      TAILNET_HOSTNAME: ${TAILNET_HOSTNAME}
+      WORKER_NAME: notifier
+    secrets: [ja_notifier_password, discord_webhook]
+    depends_on:
+      postgres: {condition: service_healthy}
+    command: ["python", "-m", "job_agent.workers.notifier"]
+    logging: *default-logging
+    # edge because it is the only service that must reach discord.com.
+    networks: [internal, edge]
+
   # ---- defined in later phases; budget shown so the total stays visible ----
-  # worker:     mem_limit: 1024m  cpus: 2.0   (Phase 5)
-  # scheduler:  mem_limit: 256m   cpus: 0.5   (Phase 6)
-  # notifier:   mem_limit: 192m   cpus: 0.5   (Phase 10)
+  # Declared total 3904 MiB of the 8192 MiB ceiling; 3392 MiB always-on
+  # (migrator and profile-loader are "tools" profiles, not long-running).
   # browser:    mem_limit: 3072m  cpus: 2.0   (Phase 15)
 
 volumes:
