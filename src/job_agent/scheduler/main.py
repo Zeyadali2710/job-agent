@@ -49,6 +49,14 @@ async def enqueue_notify_matches() -> None:
     await _enqueue_kind("notify_matches")
 
 
+async def enqueue_draft() -> None:
+    await _enqueue_kind("draft")
+
+
+async def enqueue_generate() -> None:
+    await _enqueue_kind("generate")
+
+
 async def daily_summary() -> None:
     async with tx() as conn:
         await enqueue(conn, "daily_summary", {}, dedupe_key=None, priority=200)
@@ -89,6 +97,15 @@ def build() -> AsyncIOScheduler:
     sched.add_job(enqueue_notify_matches,
                   CronTrigger(minute="7,17,27,37,47,57", timezone=SYDNEY),
                   id="notify_matches", replace_existing=True)
+    # Drafting is hourly, not every ten minutes: a cover letter is the most
+    # expensive call in the system and the set of jobs worth drafting for does
+    # not change between :10 and :20. generate follows draft by two minutes so
+    # the applications it looks for already exist; the `render` item it enqueues
+    # is picked up by the renderer, which polls rather than waiting on a cron.
+    sched.add_job(enqueue_draft, CronTrigger(minute=25, timezone=SYDNEY),
+                  id="draft", replace_existing=True)
+    sched.add_job(enqueue_generate, CronTrigger(minute=27, timezone=SYDNEY),
+                  id="generate", replace_existing=True)
     return sched
 
 

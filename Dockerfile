@@ -10,6 +10,12 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
+# Created in the image so the named volume mounted here inherits app:app.
+# Docker seeds an empty named volume from the image directory, ownership
+# included; without this the volume lands root-owned and the renderer, which
+# runs as uid 10001 with cap_drop ALL, cannot write a PDF into it.
+RUN mkdir -p /app/artifacts && chown app:app /app/artifacts
+
 COPY src/ /app/src/
 COPY pytest.ini /app/pytest.ini
 ENV PYTHONPATH=/app/src

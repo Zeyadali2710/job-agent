@@ -16,6 +16,8 @@ from job_agent.pipeline.screen import screen_pending
 from job_agent.pipeline.score import score_pending
 from job_agent.pipeline.enrich import enrich_pending
 from job_agent.notifications.matches import notify_high_matches
+from job_agent.generation.draft import draft_applications
+from job_agent.generation.documents import generate_pending
 
 WORKER = os.environ.get("WORKER_NAME", "worker-1")
 _stop = asyncio.Event()
@@ -27,6 +29,11 @@ HANDLERS = {
     "enrich": lambda p: enrich_pending(p.get("limit", 25)),
     "score": lambda p: score_pending(p.get("limit", 200)),
     "notify_matches": lambda p: notify_high_matches(p.get("limit", 20)),
+    "draft": lambda p: draft_applications(p.get("limit")),
+    # `render` is deliberately absent: it belongs to the renderer, which is the
+    # only role with USAGE on schema sensitive.
+    "generate": lambda p: generate_pending(p.get("limit", 5),
+                                           p.get("application_id")),
     "daily_summary": lambda p: daily_summary(),
 }
 

@@ -23,6 +23,8 @@ secrets:
     file: /opt/job-agent/secrets/discord_webhook
   anthropic_api_key:
     file: /opt/job-agent/secrets/anthropic_api_key
+  ja_renderer_password:
+    file: /opt/job-agent/secrets/ja_renderer_password
 
 services:
   postgres:
@@ -252,8 +254,44 @@ services:
     # edge because it is the only service that must reach discord.com.
     networks: [internal, edge]
 
+  # The only service with USAGE on schema sensitive, and the only one attached
+  # to `internal` alone. Architecture 9: contact details are template-filled
+  # into the PDF locally -- this is the process that does it, and it has no
+  # route off the compose network to send them anywhere.
+  renderer:
+    build: .
+    restart: unless-stopped
+    mem_limit: 384m
+    memswap_limit: 384m
+    cpus: 1.0
+    pids_limit: 128
+    init: true
+    read_only: true
+    tmpfs: [/tmp:size=64m]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    environment:
+      DRY_RUN: ${DRY_RUN}
+      LOG_LEVEL: ${LOG_LEVEL}
+      TZ: UTC
+      POSTGRES_USER: ja_renderer
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: postgres
+      WORKER_NAME: renderer-1
+    # No anthropic_api_key. The renderer never calls a model, and read_only
+    # plus no egress means a compromised renderer has nothing to exfiltrate to.
+    secrets: [ja_renderer_password]
+    volumes:
+      - artifacts:/app/artifacts
+    depends_on:
+      postgres: {condition: service_healthy}
+    command: ["python", "-m", "job_agent.workers.renderer"]
+    logging: *default-logging
+    # internal only -- deliberately not `edge`.
+    networks: [internal]
+
   # ---- defined in later phases; budget shown so the total stays visible ----
-  # Declared total 3904 MiB of the 8192 MiB ceiling; 3392 MiB always-on
+  # Declared total 4288 MiB of the 8192 MiB ceiling; 3776 MiB always-on
   # (migrator and profile-loader are "tools" profiles, not long-running).
   # browser:    mem_limit: 3072m  cpus: 2.0   (Phase 15)
 
@@ -261,6 +299,10 @@ volumes:
   pgdata:
   caddy_data:
   caddy_config:
+  # Seeded from /app/artifacts in the image, which is created owned by
+  # app:app -- so a fresh named volume is already writable by uid 10001 and
+  # needs no chown on the host.
+  artifacts:
 
 networks:
   internal:

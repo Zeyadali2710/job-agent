@@ -44,11 +44,12 @@ class Selection:
     skills: tuple[str, ...]       # skill fact ids, job-relevant first
     star: tuple[str, ...]         # star ids, most relevant first
     education: tuple[str, ...]    # education ids, chronological
+    education_highlights: tuple[str, ...] = ()   # education_bullet ids
 
     @property
     def all_ids(self) -> tuple[str, ...]:
-        return (*self.education, *self.experience, *self.projects,
-                *self.skills, *self.star)
+        return (*self.education, *self.education_highlights, *self.experience,
+                *self.projects, *self.skills, *self.star)
 
 
 def terms(*sources: Iterable[str]) -> set[str]:
@@ -92,7 +93,8 @@ def _rank(facts: Sequence[Fact], job_terms: set[str], limit: int,
 def select(facts: Sequence[Fact], *, job_skills: Sequence[str] = (),
            job_requirements: Sequence[str] = (), job_title: str = "",
            max_experience: int = 8, max_projects: int = 6,
-           max_skills: int = 14, max_star: int = 2) -> Selection:
+           max_skills: int = 14, max_star: int = 2,
+           max_education_highlights: int = 3) -> Selection:
     """Pick the facts this particular job should see.
 
     Education is never ranked -- a graduate resume leads with the degree whether
@@ -110,6 +112,8 @@ def select(facts: Sequence[Fact], *, job_skills: Sequence[str] = (),
         skills=_rank(by_kind.get("skill", []), jt, max_skills, False),
         star=_rank(by_kind.get("star", []), jt, max_star, False),
         education=tuple(f.id for f in by_kind.get("education", [])),
+        education_highlights=_rank(by_kind.get("education_bullet", []), jt,
+                                   max_education_highlights, True),
     )
 
 
