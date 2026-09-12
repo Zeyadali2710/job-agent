@@ -187,7 +187,9 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_HOST: postgres
       WORKER_NAME: worker-1
-    secrets: [ja_worker_password]
+    # anthropic_api_key: the worker is the only service that enriches, and
+    # core.config reads it lazily, so no other container needs it mounted.
+    secrets: [ja_worker_password, anthropic_api_key]
     volumes:
       - ./config:/app/config:ro
       - ./tests:/app/tests:ro
