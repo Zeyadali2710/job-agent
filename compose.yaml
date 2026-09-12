@@ -25,6 +25,8 @@ secrets:
     file: /opt/job-agent/secrets/anthropic_api_key
   ja_renderer_password:
     file: /opt/job-agent/secrets/ja_renderer_password
+  ja_applier_password:
+    file: /opt/job-agent/secrets/ja_applier_password
 
 services:
   postgres:
@@ -290,8 +292,42 @@ services:
     # internal only -- deliberately not `edge`.
     networks: [internal]
 
+  # The only role with INSERT on application_attempts, which is the table the
+  # DRY_RUN trigger guards. No API key, and no profile read beyond the
+  # documents that were already generated for it.
+  applier:
+    build: .
+    restart: unless-stopped
+    mem_limit: 384m
+    memswap_limit: 384m
+    cpus: 1.0
+    pids_limit: 128
+    init: true
+    read_only: true
+    tmpfs: [/tmp:size=64m]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    environment:
+      DRY_RUN: ${DRY_RUN}
+      LOG_LEVEL: ${LOG_LEVEL}
+      TZ: UTC
+      POSTGRES_USER: ja_applier
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: postgres
+      WORKER_NAME: applier-1
+    secrets: [ja_applier_password]
+    volumes:
+      - artifacts:/app/artifacts
+    depends_on:
+      postgres: {condition: service_healthy}
+    command: ["python", "-m", "job_agent.workers.applier"]
+    logging: *default-logging
+    # internal only until Phase 15 gives it a browser that must reach an
+    # employer. Nothing in Phase 14 leaves the machine.
+    networks: [internal]
+
   # ---- defined in later phases; budget shown so the total stays visible ----
-  # Declared total 4288 MiB of the 8192 MiB ceiling; 3776 MiB always-on
+  # Declared total 4672 MiB of the 8192 MiB ceiling; 4160 MiB always-on
   # (migrator and profile-loader are "tools" profiles, not long-running).
   # browser:    mem_limit: 3072m  cpus: 2.0   (Phase 15)
 

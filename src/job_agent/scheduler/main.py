@@ -61,6 +61,10 @@ async def enqueue_route() -> None:
     await _enqueue_kind("route")
 
 
+async def enqueue_resolve_orphans() -> None:
+    await _enqueue_kind("resolve_orphans")
+
+
 async def daily_summary() -> None:
     async with tx() as conn:
         await enqueue(conn, "daily_summary", {}, dedupe_key=None, priority=200)
@@ -121,6 +125,14 @@ def build() -> AsyncIOScheduler:
     # up an application as soon as its documents finish rendering.
     sched.add_job(enqueue_route, CronTrigger(minute="9,39", timezone=SYDNEY),
                   id="route", replace_existing=True)
+    # `submit` is deliberately not on a cron: approval enqueues it. A DRY_RUN
+    # rehearsal returns the application to APPROVED, so a scheduled submit
+    # would rehearse the same application on every tick forever.
+    # Orphan resolution is: an attempt interrupted past SUBMIT_INTENT must
+    # become a question quickly, not at the next approval.
+    sched.add_job(enqueue_resolve_orphans,
+                  CronTrigger(minute="14,44", timezone=SYDNEY),
+                  id="resolve_orphans", replace_existing=True)
     return sched
 
 

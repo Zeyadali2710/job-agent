@@ -16,6 +16,7 @@ from job_agent.ai.client import decode_jsonb
 from job_agent.application import rules as R
 from job_agent.application.transitions import check
 from job_agent.core.db import tx
+from job_agent.core.queue import enqueue
 
 
 def advisories(docs) -> list[str]:
@@ -168,6 +169,9 @@ async def route_pending(limit: int = 20) -> dict:
                         "advisories": advisories(docs)})})
                 counts["awaiting"] += 1
             elif decision.status == "APPROVED":
+                await enqueue(conn, "submit",
+                              {"application_id": row["app_id"], "limit": 5},
+                              dedupe_key=f"submit:{row['app_id']}")
                 approved_today += 1
                 counts["approved"] += 1
             else:
@@ -189,4 +193,11 @@ async def set_status(app_id: int, to_status: str, *, actor: str,
             raise ValueError(f"no application {app_id}")
         await transition(conn, app_id, row.status, to_status,
                          actor=actor, reason=reason or f"{actor} via dashboard")
+        if to_status == "APPROVED":
+            # Not a cron. An approved application would otherwise be rehearsed
+            # on every tick forever, because a DRY_RUN rehearsal returns it to
+            # APPROVED. The dedupe key only holds while the item is PENDING or
+            # RUNNING, so a later deliberate re-attempt still enqueues.
+            await enqueue(conn, "submit", {"application_id": app_id, "limit": 5},
+                          dedupe_key=f"submit:{app_id}")
     return {"application_id": app_id, "from": row.status, "to": to_status}
