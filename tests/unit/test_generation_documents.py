@@ -159,3 +159,15 @@ def test_parent_map_is_built_from_the_data_not_from_id_prefixes():
     assert pm["exp.armsoa.b1"] == "ArmsOA"
     assert pm["proj.ancr.b1"] == "ANCR Capstone"
     assert "skill.python" not in pm and "edu.unsw.h1" not in pm
+
+
+def test_revalidation_is_registered_and_needs_no_model():
+    """A validator fix must be re-appliable to drafts already paid for.
+    revalidate re-runs a pure function over generated_documents.content, so it
+    works with ai.mode off -- which is exactly when you want it."""
+    from job_agent.workers.loop import HANDLERS
+    assert "revalidate" in HANDLERS
+    body = (__import__("pathlib").Path(__file__).resolve().parents[2]
+            / "src" / "job_agent" / "generation" / "revalidate.py"
+            ).read_text(encoding="utf-8")
+    assert "call_json" not in body and "build_client" not in body

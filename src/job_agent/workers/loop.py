@@ -20,6 +20,7 @@ from job_agent.generation.draft import draft_applications
 from job_agent.generation.documents import generate_pending
 from job_agent.generation.answers import answer_questions
 from job_agent.application.route import route_pending
+from job_agent.generation.revalidate import revalidate_pending
 
 WORKER = os.environ.get("WORKER_NAME", "worker-1")
 _stop = asyncio.Event()
@@ -38,6 +39,10 @@ HANDLERS = {
                                            p.get("application_id")),
     "answer": lambda p: answer_questions(p["application_id"]),
     "route": lambda p: route_pending(p.get("limit", 20)),
+    # Free: re-runs a pure function over stored content, no model involved,
+    # so a validator fix does not mean paying to regenerate.
+    "revalidate": lambda p: revalidate_pending(p.get("limit", 50),
+                                               p.get("application_id")),
     "daily_summary": lambda p: daily_summary(),
 }
 
