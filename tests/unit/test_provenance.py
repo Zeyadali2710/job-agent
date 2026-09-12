@@ -149,3 +149,45 @@ def test_cited_ids_are_deduplicated_in_order():
     blocks = [{"text": "a", "source_ids": ["b", "a"]},
               {"text": "c", "source_ids": ["a", "c"]}]
     assert cited_ids(blocks) == ["b", "a", "c"]
+
+
+# ----------------------------------------------------- advisories, not failures
+
+PARENTS = {"exp.armsoa.b1": "ArmsOA", "exp.armsoa.b2": "ArmsOA",
+           "proj.ancr.b1": "ANCR Capstone"}
+
+
+def test_a_paragraph_spanning_two_engagements_is_flagged_for_review():
+    """The real failure entity checking cannot see: "as Product Owner for a
+    five-person capstone team, I directed the integration of five codebases"
+    -- every entity real, both numbers cited, two different engagements."""
+    from job_agent.generation.provenance import merged_source_advisories
+    f = merged_source_advisories(
+        [{"source_ids": ["exp.armsoa.b1", "proj.ancr.b1"]}], PARENTS)
+    assert [x.kind for x in f] == ["MERGED_SOURCES"]
+    assert "ArmsOA" in f[0].detail and "ANCR Capstone" in f[0].detail
+
+
+def test_two_bullets_from_the_same_engagement_are_not_a_merge():
+    from job_agent.generation.provenance import merged_source_advisories
+    assert merged_source_advisories(
+        [{"source_ids": ["exp.armsoa.b1", "exp.armsoa.b2"]}], PARENTS) == []
+
+
+def test_background_facts_do_not_count_as_a_second_engagement():
+    """Citing a skill or a degree alongside a role is normal writing, not a
+    conflation; counting it would make the advisory fire on every paragraph
+    and stop being read."""
+    from job_agent.generation.provenance import merged_source_advisories
+    assert merged_source_advisories(
+        [{"source_ids": ["exp.armsoa.b1", "skill.python", "edu.unsw"]}], PARENTS) == []
+
+
+def test_an_advisory_is_not_a_quarantine():
+    """MERGED_SOURCES must never change validator_state: a good cover letter
+    legitimately draws on two roles in one paragraph, and quarantining those
+    would make the mechanism useless."""
+    state, findings = validate(
+        [{"text": "Python work.", "source_ids": ["skill.python"]}],
+        facts=FACTS, job_text=AD)
+    assert state == PASSED and findings == []

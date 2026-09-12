@@ -166,6 +166,23 @@ def build_resume(facts, sel) -> dict:
     }
 
 
+def parent_of(facts) -> dict[str, str]:
+    """bullet id -> the engagement it belongs to, read from each parent's own
+    bullet list rather than from an id prefix, so a profile that names its
+    facts differently still maps correctly. Skills, education and STAR answers
+    are left out: they are background, not engagements, and citing two of them
+    alongside one role is not a merge."""
+    out: dict[str, str] = {}
+    for f in facts:
+        if f.kind not in ("experience", "project"):
+            continue
+        label = (f.data or {}).get("organisation") or (f.data or {}).get("name") or f.id
+        for b in (f.data or {}).get("bullets") or ():
+            if b.get("id"):
+                out[b["id"]] = str(label)
+    return out
+
+
 def job_text(title: str, company: str | None, description: str | None) -> str:
     """The advertisement as the validator sees it: everything the model was
     shown, so an entity it borrowed from the ad is not read as invented."""
@@ -278,6 +295,10 @@ async def generate_pending(limit: int = 5, application_id: int | None = None) ->
         state, findings = provenance.validate(
             blocks, facts=all_facts, job_text=ad,
             extra_allowed=[row["company"] or "", row["title"]])
+        # Advisories do not change the verdict; they are what the approval step
+        # should read first.
+        findings = findings + provenance.merged_source_advisories(
+            blocks, parent_of(facts))
 
         async with tx() as conn:
             await ai.log_call(conn, purpose="cover_letter", usage=usage, sha=sha,

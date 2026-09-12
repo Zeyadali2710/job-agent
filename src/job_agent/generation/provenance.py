@@ -169,6 +169,35 @@ def check_text(text: str, *, source_ids: Sequence[str], facts: Mapping[str, str]
     return findings
 
 
+def merged_source_advisories(blocks: Sequence[Mapping],
+                             parent_of: Mapping[str, str]) -> list[Finding]:
+    """Advisory, never a quarantine: a paragraph resting on bullets from two
+    different engagements.
+
+    Entity and number checking is blind to this. The first real cover letter
+    wrote "as Product Owner for a five-person capstone team, I directed the
+    integration of five codebases" -- every entity real, both numbers cited,
+    and the sentence still merged a five-person university project with a
+    three-person client contract into one engagement. Prompting alone did not
+    stop it.
+
+    It cannot be a hard failure: a good cover letter legitimately draws on two
+    roles in one paragraph. So this records what to look at, and the approval
+    step is where a person decides.
+    """
+    out: list[Finding] = []
+    for i, b in enumerate(blocks, 1):
+        parents = {parent_of[s] for s in (b.get("source_ids") or ())
+                   if s in parent_of}
+        if len(parents) > 1:
+            out.append(Finding(
+                "MERGED_SOURCES",
+                f"paragraph {i} draws on {len(parents)} separate engagements "
+                f"({', '.join(sorted(parents))}); check it does not imply they "
+                f"were one"))
+    return out
+
+
 PASSED = "PASSED"
 SUSPECTED = "FABRICATION_SUSPECTED"
 
