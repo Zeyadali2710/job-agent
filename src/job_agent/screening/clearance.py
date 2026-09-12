@@ -39,6 +39,9 @@ def classify(text: str | None, profile_citizenship: str) -> tuple[list[str], str
     else:
         strength = "UNCLEAR"
 
-    # AGSVA clearances require Australian citizenship, full stop.
-    hard_block = strength.startswith("MANDATORY") and profile_citizenship != "AU"
+    # AGSVA clearances require Australian citizenship, full stop. Employer
+    # sponsorship pays for the vetting, it does not waive the citizenship
+    # requirement, so SPONSORED_AFTER_HIRE blocks a non-citizen just as hard.
+    blocking = strength.startswith("MANDATORY") or strength == "SPONSORED_AFTER_HIRE"
+    hard_block = blocking and profile_citizenship != "AU"
     return detected, strength, clause, hard_block

@@ -111,6 +111,17 @@ def test_clearance_citizenship_block():
     assert block_au is False
 
 
+def test_clearance_sponsorship_does_not_waive_citizenship():
+    """An employer offering to sponsor the clearance still cannot make a
+    non-citizen eligible -- AGSVA requires Australian citizenship."""
+    _, strength, _, block = clearance.classify(
+        "AGSVA sponsorship provided for the successful candidate", "XX")
+    assert strength == "SPONSORED_AFTER_HIRE" and block is True
+    _, _, _, block_au = clearance.classify(
+        "AGSVA sponsorship provided for the successful candidate", "AU")
+    assert block_au is False
+
+
 def test_clearance_preferred_never_blocks():
     _, strength, _, block = clearance.classify(
         "A security clearance is desirable", "IN")
