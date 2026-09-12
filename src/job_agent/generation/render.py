@@ -35,8 +35,10 @@ SELECT d.id, d.application_id, d.kind, d.content, d.validator_state,
   LEFT JOIN app.companies c ON c.id = g.company_id
  WHERE d.path IS NULL
    AND d.validator_state = 'PASSED'
-   -- Cast both uses: a bare `:p IS NULL` is an asyncpg
-   -- AmbiguousParameterError, same as core.queue's kind filter.
+   -- Cast both uses; a bare "param IS NULL" is an asyncpg
+   -- AmbiguousParameterError. Do not write a colon-prefixed name in a
+   -- comment here: text() regex-scans the whole string and would make it a
+   -- required bind parameter.
    AND (CAST(:app_id AS bigint) IS NULL
         OR d.application_id = CAST(:app_id AS bigint))
  ORDER BY d.id
