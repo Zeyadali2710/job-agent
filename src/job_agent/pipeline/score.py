@@ -19,7 +19,11 @@ from sqlalchemy import text
 # 1.1.0: grad_program became a live feature. The scorer code is unchanged, but
 # its inputs are not -- nothing had ever set job_groups.is_grad_program, so the
 # 10-point feature scored zero for the entire corpus. Bumping re-scores it.
-SCORER_VERSION = "1.1.0"
+# 1.2.0: skill_overlap's denominator gained a floor and an empty extraction
+# stopped being neutral. The weights and the profile are hashed into the
+# version, but the scoring logic is not, so changing it needs this bump or
+# every existing score stays and the re-score reports scored: 0.
+SCORER_VERSION = "1.2.0"
 
 # The positive weights sum to exactly 100, grad_program included. An earlier
 # cut treated it as a bonus on top of 100, which meant a strong job hit the
