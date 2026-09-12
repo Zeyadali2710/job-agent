@@ -94,3 +94,36 @@ def test_usage_is_immutable():
 def test_every_routed_model_has_a_price():
     """A model in the routing table with no price would bill invisibly."""
     assert set(PRICING_USD) == {HAIKU, SONNET}
+
+
+# ------------------------------------------------------- jsonb scalar decode
+
+@pytest.mark.parametrize("raw,expected", [
+    # already decoded by the driver's jsonb codec -- the shape that broke it
+    ("on", "on"),
+    ({}, {}),
+    ({"freshness": 4}, {"freshness": 4}),
+    (20, 20),
+    (1.55, 1.55),
+    # raw jsonb text, if a driver ever stops decoding
+    ('"on"', "on"),
+    ('{"freshness": 4}', {"freshness": 4}),
+    ('20', 20),
+    (None, None),
+])
+def test_decode_jsonb_handles_both_driver_behaviours(raw, expected):
+    """app.settings holds the first scalar jsonb this system reads. The
+    isinstance(str) -> json.loads guard used elsewhere is right for objects and
+    wrong for string scalars: '"on"'::jsonb decodes to the Python string "on",
+    and decoding that again raises JSONDecodeError -- which is precisely how
+    score_pending failed on its first run against real data."""
+    from job_agent.ai.client import decode_jsonb
+    assert decode_jsonb(raw) == expected
+
+
+def test_the_seeded_settings_all_survive_a_decode():
+    """Every value 0007 seeds, in the shape asyncpg hands back."""
+    from job_agent.ai.client import decode_jsonb
+    seeded = {"ai.mode": "on", "ai.monthly_budget_aud": 20,
+              "ai.fx_aud_per_usd": 1.55, "score.weights": {}}
+    assert {k: decode_jsonb(v) for k, v in seeded.items()} == seeded

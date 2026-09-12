@@ -94,15 +94,32 @@ VALUES (:purpose, :model, :sha, :tin, :tout, :cost, :etype, :eid, :ok, :err)
 """)
 
 
+def decode_jsonb(v):
+    """jsonb reaches us decoded or raw depending on driver codec registration.
+
+    The isinstance(str) -> json.loads guard used elsewhere in this codebase is
+    right for jsonb OBJECTS -- a dict never arrives as a str unless it is
+    undecoded -- but wrong for jsonb STRING SCALARS, where the decoded form is
+    itself a str. app.settings holds the first scalar jsonb this system reads,
+    and '"on"'::jsonb decodes to the Python string "on", which json.loads then
+    rejects with "Expecting value: line 1 column 1".
+
+    So: attempt a decode, and treat failure as proof it was already decoded.
+    Both paths converge on the same value.
+    """
+    if not isinstance(v, str):
+        return v
+    try:
+        return json.loads(v)
+    except ValueError:
+        return v
+
+
 async def load_config(conn) -> dict:
     rows = (await conn.execute(SETTINGS, {"keys": [
         "ai.mode", "ai.monthly_budget_aud", "ai.fx_aud_per_usd", "score.weights",
     ]})).mappings().all()
-    out = {}
-    for r in rows:
-        v = r["value"]
-        out[r["key"]] = json.loads(v) if isinstance(v, str) else v
-    return out
+    return {r["key"]: decode_jsonb(r["value"]) for r in rows}
 
 
 async def spent_this_month(conn) -> float:
