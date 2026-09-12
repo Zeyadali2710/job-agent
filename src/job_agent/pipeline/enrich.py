@@ -92,6 +92,16 @@ async def enrich_pending(limit: int = 25) -> dict:
                     entity_type="job_group", entity_id=row["id"],
                     ok=False, error=f"{type(exc).__name__}: {exc}")
             counts["failed"] += 1
+            # A 4xx is a property of the request or the credential, not of this
+            # particular advertisement: a missing workspace header, a revoked
+            # key, a schema the API rejects. It will fail identically for every
+            # remaining row, so stop rather than making two dozen doomed calls
+            # and filling llm_calls with copies of one message. 429 and 5xx are
+            # transient and the SDK has already retried them, so those move on
+            # to the next job.
+            if ai.is_permanent_error(exc):
+                counts["stopped"] = f"aborted batch: {type(exc).__name__}"
+                break
             continue
 
         async with tx() as conn:

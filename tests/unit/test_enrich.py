@@ -144,3 +144,38 @@ def test_salary_text_renders_or_stays_silent(salary, expected):
     """After the money-marker fix most ads are genuinely ABSENT. The card must
     print nothing rather than a fabricated figure."""
     assert salary_text(salary) == expected
+
+
+# ------------------------------------------------- permanent vs transient
+
+class FakeStatusError(Exception):
+    def __init__(self, status_code):
+        super().__init__(f"status {status_code}")
+        self.status_code = status_code
+
+
+@pytest.mark.parametrize("status", [400, 401, 403, 404, 413, 422])
+def test_client_errors_abort_the_batch(status):
+    """A 400 like "this API key is not scoped to a workspace" is a property of
+    the credential, not of one advertisement. Continuing would make an
+    identical doomed call for every remaining job and fill llm_calls with
+    copies of one message -- which is exactly what happened on the first real
+    run against the API."""
+    assert ai.is_permanent_error(FakeStatusError(status)) is True
+
+
+@pytest.mark.parametrize("status", [429, 500, 502, 503, 529])
+def test_rate_limits_and_server_errors_are_not_permanent(status):
+    """The SDK has already retried these by the time they surface. The next
+    job may well succeed, so the batch carries on."""
+    assert ai.is_permanent_error(FakeStatusError(status)) is False
+
+
+@pytest.mark.parametrize("exc", [
+    ValueError("bad json"),
+    RuntimeError("model declined the request"),
+    TimeoutError(),
+])
+def test_errors_without_a_status_code_do_not_abort(exc):
+    """A parse failure or a refusal is about that one advertisement."""
+    assert ai.is_permanent_error(exc) is False

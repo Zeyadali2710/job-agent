@@ -149,6 +149,20 @@ async def log_call(conn, *, purpose: str, usage: Usage, sha: str,
     })
 
 
+def is_permanent_error(exc: Exception) -> bool:
+    """True for a failure that will repeat identically on the next request.
+
+    Checked by status code rather than by exception class so this module keeps
+    importing without the anthropic package installed. 4xx means the request or
+    the credential is wrong -- a key that is not scoped to a workspace, a
+    revoked key, a schema the API rejects -- and retrying it across a batch
+    just multiplies one error. 429 is excluded: it is a rate limit, not a
+    defect, and the SDK has already backed off by the time it surfaces.
+    """
+    status = getattr(exc, "status_code", None)
+    return isinstance(status, int) and 400 <= status < 500 and status != 429
+
+
 def build_client(api_key: str):
     """Imported lazily so that every service without an API key -- which is all
     of them except the worker -- can still import this module."""
