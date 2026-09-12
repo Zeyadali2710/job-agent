@@ -5,13 +5,22 @@ the gate order, which matters because the reason you see on the dashboard is
 whichever gate fires first.
 """
 import pytest
-import yaml
-from pathlib import Path
 
 from job_agent.pipeline.screen import decide
 from job_agent.profile.models import Preferences
 
-PROFILE = Path(__file__).resolve().parents[2] / "profile"
+# The minimum Preferences the model accepts. Built inline, not read from
+# profile/preferences.yaml: tests/unit is pure-function, and the worker
+# container that runs the suite deliberately does not mount ./profile -- only
+# profile-loader does, because ja_worker must not be able to read the profile.
+MIN_PREFS = {
+    "id": "preferences.self",
+    "seniority_targets": ["GRADUATE"],
+    "location_classes_accepted": ["SYDNEY_CBD"],
+    "employment_types": ["FULL_TIME"],
+    "salary_min": 70000,
+    "salary_target": 90000,
+}
 
 PREFS = {
     "location_classes_accepted": ["SYDNEY_CBD", "SYDNEY_METRO", "GREATER_SYDNEY",
@@ -47,19 +56,17 @@ def test_uncertain_work_rights_can_still_be_held_for_review():
         "REVIEW_REQUIRED", "WORK_RIGHTS_UNCERTAIN")
 
 
-def test_the_profile_on_disk_selects_the_proceed_policy():
-    """The policy only works if the real profile carries the key and it
-    survives Preferences(extra='forbid')."""
-    prefs = Preferences(**yaml.safe_load((PROFILE / "preferences.yaml").read_text()))
-    assert prefs.uncertain_policy == "proceed_with_flag"
+def test_the_policy_defaults_to_proceeding():
+    """Architecture 6 names proceed_with_flag as the default, so a profile that
+    omits the key entirely must still proceed rather than hold."""
+    assert Preferences(**MIN_PREFS).uncertain_policy == "proceed_with_flag"
 
 
 def test_an_unknown_policy_value_is_rejected_not_defaulted():
     """A typo must fail in the profile validator. Falling back to a default
     would silently pick a screening policy nobody chose."""
-    raw = yaml.safe_load((PROFILE / "preferences.yaml").read_text())
     with pytest.raises(Exception):
-        Preferences(**{**raw, "uncertain_policy": "proceed"})
+        Preferences(**{**MIN_PREFS, "uncertain_policy": "proceed"})
 
 
 # ------------------------------------------------------------ gate precedence
