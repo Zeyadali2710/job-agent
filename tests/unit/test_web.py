@@ -84,11 +84,13 @@ EVENTS = [{"at_sydney": "2025-06-01 10:00", "entity_type": "job_group", "entity_
 COLUMNS = [{"label": "READY", "count": 3}]
 WORK = [{"kind": "poll_source", "state": "PENDING", "count": 1,
          "oldest_sydney": "2025-06-01 10:00"}]
+OUTBOX = {"pending": 1, "sent": 9, "dead": 0, "last_sent_sydney": "2025-06-01 19:00"}
 
 CONTEXTS = {
     "base.html": PAGE,
     "_stats.html": {"stats": STATS},
-    "overview.html": {**PAGE, "stats": STATS, "heartbeats": HEARTBEATS, "sources": SOURCES},
+    "overview.html": {**PAGE, "stats": STATS, "heartbeats": HEARTBEATS,
+                  "sources": SOURCES, "outbox": OUTBOX},
     "jobs.html": {**PAGE, "jobs": JOBS, "status": "READY", "query": "grad"},
     "_jobs.html": {"jobs": JOBS},
     "job_detail.html": {**PAGE, "job": JOB, "postings": POSTINGS,
@@ -126,6 +128,8 @@ def test_template_renders_when_every_collection_is_empty(name):
             empty[optional] = None
     if "salary" in empty:
         empty["salary"] = {}
+    if "outbox" in empty:
+        empty["outbox"] = {"pending": 0, "sent": 0, "dead": 0, "last_sent_sydney": None}
     html = env().get_template(name).render(**empty)
     assert html.strip()
 
