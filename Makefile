@@ -1,5 +1,8 @@
 .PHONY: up down logs ps restart build health psql prune
-up:      ; docker compose up -d --build
+# --build alone rebuilds only the default-profile images, and `make build`
+# on its own leaves the running containers on the old one. This is the
+# deploy verb: build everything, then recreate whatever changed.
+up:      ; docker compose --profile tools build && docker compose up -d
 down:    ; docker compose down
 logs:    ; docker compose logs -f --tail=100
 ps:      ; docker compose ps
