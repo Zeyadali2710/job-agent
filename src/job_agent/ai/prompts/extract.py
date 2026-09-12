@@ -11,15 +11,35 @@ from __future__ import annotations
 SYSTEM = (
     "You extract structured facts from Australian job advertisements. "
     "Report only what the advertisement states. If the advertisement does not "
-    "state something, omit it or use null -- never infer, never fill a gap with "
-    "what is typical for the role. Skills must be named technologies, tools, "
-    "languages or named methodologies, not soft skills or adjectives."
+    "state something, omit the field entirely -- never infer, never fill a gap "
+    "with what is typical for the role. Skills must be named technologies, "
+    "tools, languages or named methodologies, not soft skills or adjectives. "
+    "List at most 20 skills and at most 15 requirements, keeping each "
+    "requirement under 200 characters."
 )
 
 # Architecture 6.3 names the grad fields worth having. graduation_window_years
 # is a two-sided check: "must have graduated within the last 2 years" is a real
 # and common AU criterion that can exclude you for graduating too long ago, not
 # only for graduating too recently.
+#
+# Structured outputs accept a restricted subset of JSON Schema. The API
+# rejected maxItems outright ("For 'array' type, property 'maxItems' is not
+# supported"), so every validation keyword whose support is unconfirmed is left
+# out rather than discovered one 400 at a time: no maxItems, no maxLength, no
+# type unions. SUPPORTED_KEYWORDS below is enforced by a test.
+#
+# The caps those keywords used to express now live in the system prompt, and
+# max_tokens is the hard ceiling underneath it -- a model that ignores the
+# instruction costs a bounded number of output tokens, not an unbounded one.
+#
+# Optional fields are simply absent from `required` rather than nullable: the
+# model omits what the ad does not state, and data.get() reads that as None.
+SUPPORTED_KEYWORDS = {
+    "type", "properties", "required", "additionalProperties", "items",
+    "description", "enum",
+}
+
 SCHEMA = {
     "type": "object",
     "additionalProperties": False,
@@ -27,31 +47,35 @@ SCHEMA = {
     "properties": {
         "skills": {
             "type": "array",
-            "maxItems": 20,
-            "items": {"type": "string", "maxLength": 40},
-            "description": "Named technologies, languages, tools or frameworks.",
+            "items": {"type": "string"},
+            "description": "Named technologies, languages, tools or frameworks. At most 20.",
         },
         "requirements": {
             "type": "array",
-            "maxItems": 15,
-            "items": {"type": "string", "maxLength": 200},
-            "description": "Stated requirements, one per entry, quoted or closely paraphrased.",
+            "items": {"type": "string"},
+            "description": "Stated requirements, one per entry, quoted or closely paraphrased. At most 15.",
         },
         "degree_requirements": {
             "type": "array",
-            "maxItems": 8,
-            "items": {"type": "string", "maxLength": 100},
+            "items": {"type": "string"},
+            "description": "Degree or field-of-study requirements, if stated.",
         },
         "graduation_window_years": {
-            "type": ["integer", "null"],
-            "description": "Max years since graduation the ad allows, if stated.",
+            "type": "integer",
+            "description": "Max years since graduation the ad allows. Omit if not stated.",
         },
-        "years_experience_min": {"type": ["integer", "null"]},
+        "years_experience_min": {
+            "type": "integer",
+            "description": "Minimum years of experience stated. Omit if not stated.",
+        },
         "is_grad_program": {
             "type": "boolean",
             "description": "A structured graduate/intern cohort with an intake, not merely a junior role.",
         },
-        "intake_year": {"type": ["integer", "null"]},
+        "intake_year": {
+            "type": "integer",
+            "description": "Cohort intake year. Omit if not stated.",
+        },
     },
 }
 

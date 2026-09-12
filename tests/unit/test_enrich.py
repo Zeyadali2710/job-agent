@@ -46,18 +46,51 @@ def test_schema_forbids_extra_keys_and_requires_the_two_that_matter():
     assert set(prompt.SCHEMA["required"]) == {"skills", "requirements"}
 
 
-def test_schema_caps_list_lengths():
-    """An unbounded array is an unbounded output-token bill, and output tokens
-    are the expensive ones."""
-    for key in ("skills", "requirements", "degree_requirements"):
-        assert prompt.SCHEMA["properties"][key]["maxItems"] > 0
+def _keywords(node):
+    """Every schema keyword used anywhere in the tree."""
+    found = set()
+    if isinstance(node, dict):
+        for k, v in node.items():
+            found.add(k)
+            if k == "properties" and isinstance(v, dict):
+                for sub in v.values():
+                    found |= _keywords(sub)
+            elif k in ("items",):
+                found |= _keywords(v)
+    return found
 
 
-def test_the_grad_window_is_nullable_because_it_is_a_two_sided_check():
+def test_schema_uses_only_keywords_structured_outputs_accepts():
+    """Structured outputs take a restricted subset of JSON Schema. The API
+    rejected maxItems outright -- "For 'array' type, property 'maxItems' is not
+    supported" -- and each such rejection costs a deploy cycle to discover, so
+    the allowed set is pinned here rather than found one 400 at a time."""
+    used = _keywords(prompt.SCHEMA) - {"properties"}
+    unsupported = used - prompt.SUPPORTED_KEYWORDS
+    assert not unsupported, f"schema uses unsupported keywords: {sorted(unsupported)}"
+
+
+def test_no_type_unions_anywhere():
+    """["integer", "null"] would very likely have been the next rejection.
+    Optional fields are absent from `required` instead, and the model omits
+    what the ad does not state."""
+    for name, spec in prompt.SCHEMA["properties"].items():
+        assert isinstance(spec["type"], str), f"{name} uses a type union"
+
+
+def test_the_output_caps_moved_into_the_prompt():
+    """maxItems used to bound the output-token bill. With it unavailable, the
+    system prompt states the caps and max_tokens is the hard ceiling under it."""
+    assert "at most 20 skills" in prompt.SYSTEM.lower()
+    assert "at most 15 requirements" in prompt.SYSTEM.lower()
+
+
+def test_the_grad_window_is_optional_because_it_is_a_two_sided_check():
     """Architecture 6.3: "must have graduated within the last 2 years" can
     exclude you for graduating too long ago. Absent must be distinguishable
-    from zero."""
-    assert "null" in prompt.SCHEMA["properties"]["graduation_window_years"]["type"]
+    from zero, so it is omitted rather than sent as 0."""
+    assert "graduation_window_years" not in prompt.SCHEMA["required"]
+    assert prompt.SCHEMA["properties"]["graduation_window_years"]["type"] == "integer"
 
 
 # --------------------------------------------------------------- call path
