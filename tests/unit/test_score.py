@@ -198,6 +198,19 @@ def test_effective_version_changes_when_weights_change():
     assert effective_version(dict(DEFAULT_WEIGHTS)) == base, "must be stable"
 
 
+def test_effective_version_changes_when_the_profile_changes():
+    """skill_overlap reads the profile's skills, so loading a new profile
+    invalidates every score. Without the profile sha in the version, a
+    re-score after `make profile-load` reports scored: 0 and leaves the
+    corpus ranked against the previous profile."""
+    from job_agent.pipeline.score import effective_version
+    a = effective_version(DEFAULT_WEIGHTS, "a" * 64)
+    b = effective_version(DEFAULT_WEIGHTS, "b" * 64)
+    assert a != b, "a new profile must force a re-score"
+    assert effective_version(DEFAULT_WEIGHTS, "a" * 64) == a, "must be stable"
+    assert effective_version(DEFAULT_WEIGHTS) != a, "no profile is its own input"
+
+
 def test_effective_version_ignores_dict_ordering():
     from job_agent.pipeline.score import effective_version
     a = {"x": 1, "y": 2}

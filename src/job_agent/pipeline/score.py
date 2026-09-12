@@ -199,8 +199,8 @@ def why_and_concerns(features: Sequence[Mapping], n: int = 5) -> tuple[list[str]
 
 # ---------------------------------------------------------------- persistence
 
-def effective_version(weights: Mapping) -> str:
-    """SCORER_VERSION plus a hash of the weights actually used.
+def effective_version(weights: Mapping, profile_sha: str | None = None) -> str:
+    """SCORER_VERSION plus a hash of every input that is not the job itself.
 
     job_scores has UNIQUE (job_group_id, scorer_version) and ja_worker has no
     DELETE on score_features, so a row cannot be rewritten in place -- which is
@@ -209,12 +209,24 @@ def effective_version(weights: Mapping) -> str:
     without a deploy, and tuning them without changing the version would leave
     every existing score stale and un-recomputable. Folding the weights into
     the version means editing a weight re-scores the corpus automatically.
+
+    The profile is an input by exactly the same argument and was missing from
+    it: skill_overlap reads your skills and the preferences drive the seniority
+    and location features, so `make profile-load` invalidates every score.
+    Without the sha in here a re-score after loading a new profile reports
+    "scored: 0" and quietly leaves the corpus ranked against the old you.
     """
     import hashlib
     import json as _json
-    blob = _json.dumps({k: float(v) for k, v in sorted(weights.items())},
-                       separators=(",", ":"))
+    blob = _json.dumps(
+        {"profile": profile_sha,
+         "weights": {k: float(v) for k, v in sorted(weights.items())}},
+        separators=(",", ":"))
     return f"{SCORER_VERSION}+{hashlib.sha256(blob.encode()).hexdigest()[:8]}"
+
+
+ACTIVE_PROFILE_SHA = text(
+    "SELECT content_sha256 FROM app.profile_versions WHERE is_active")
 
 
 # Needs-scoring, not merely never-scored. Enrichment fills job_analyses.skills
@@ -321,7 +333,8 @@ async def score_pending(limit: int = 200) -> dict:
     async with tx() as conn:
         cfg = await load_config(conn)
         weights = {**DEFAULT_WEIGHTS, **(cfg.get("score.weights") or {})}
-        ver = effective_version(weights)
+        ver = effective_version(
+            weights, (await conn.execute(ACTIVE_PROFILE_SHA)).scalar())
         prof = await _profile(conn)
         prefs = prof.get("preferences", {})
         profile_skills = [r.body for r in (await conn.execute(PROFILE_SKILLS)).all()]
