@@ -181,3 +181,47 @@ def test_a_penalty_is_still_visible_on_the_best_possible_job():
     with_concern, _, _ = s(work_rights_class="UNCERTAIN")
     assert best == 100.0
     assert with_concern == 95.0
+
+
+# ------------------------------------------------------- persistence helpers
+
+def test_effective_version_changes_when_weights_change():
+    """job_scores has UNIQUE (job_group_id, scorer_version) and ja_worker has
+    no DELETE on score_features, so a score cannot be rewritten in place. The
+    weights live in app.settings to be tuned without a deploy -- folding them
+    into the version is what makes a tweak re-score instead of leaving every
+    existing score stale and unreachable."""
+    from job_agent.pipeline.score import effective_version
+    base = effective_version(DEFAULT_WEIGHTS)
+    assert base.startswith("1.0.0+")
+    assert effective_version({**DEFAULT_WEIGHTS, "freshness": 9}) != base
+    assert effective_version(dict(DEFAULT_WEIGHTS)) == base, "must be stable"
+
+
+def test_effective_version_ignores_dict_ordering():
+    from job_agent.pipeline.score import effective_version
+    a = {"x": 1, "y": 2}
+    b = {"y": 2, "x": 1}
+    assert effective_version(a) == effective_version(b)
+
+
+@pytest.mark.parametrize("raw,expected", [
+    (["Python", "SQL"], ["Python", "SQL"]),
+    ([{"name": "Python"}, {"skill": "SQL"}], ["Python", "SQL"]),
+    ([{"nope": "x"}], []),
+    ([], []),
+])
+def test_skill_names_accepts_both_prompt_shapes(raw, expected):
+    """job_analyses.skills is model output. If a prompt revision switches
+    between plain strings and objects, skill_overlap must not silently drop to
+    zero for every job."""
+    from job_agent.pipeline.score import _skill_names
+    assert _skill_names(raw) == expected
+
+
+@pytest.mark.parametrize("raw,expected", [
+    (["a"], ["a"]), ('["a"]', ["a"]), (None, []), ("", []), ("junk", []), ('{"a":1}', []),
+])
+def test_as_list_guards_the_jsonb_driver_difference(raw, expected):
+    from job_agent.pipeline.score import _as_list
+    assert _as_list(raw) == expected

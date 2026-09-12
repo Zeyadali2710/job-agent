@@ -10,6 +10,7 @@ alembic==1.14.0
 psycopg[binary]==3.2.3
 pyyaml==6.0.2
 httpx==0.28.1
+anthropic==1.5.0
 selectolax==0.3.27
 apscheduler==3.11.0
 pytest==8.3.4

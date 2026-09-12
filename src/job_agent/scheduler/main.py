@@ -37,6 +37,10 @@ async def enqueue_screen() -> None:
     await _enqueue_kind("screen")
 
 
+async def enqueue_score() -> None:
+    await _enqueue_kind("score")
+
+
 async def daily_summary() -> None:
     async with tx() as conn:
         await enqueue(conn, "daily_summary", {}, dedupe_key=None, priority=200)
@@ -67,6 +71,9 @@ def build() -> AsyncIOScheduler:
                   id="dedupe", replace_existing=True)
     sched.add_job(enqueue_screen, CronTrigger(minute="*/10", timezone=SYDNEY),
                   id="screen", replace_existing=True)
+    # Offset from screen: scoring reads what screening just wrote.
+    sched.add_job(enqueue_score, CronTrigger(minute="5,15,25,35,45,55", timezone=SYDNEY),
+                  id="score", replace_existing=True)
     return sched
 
 

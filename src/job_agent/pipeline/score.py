@@ -14,6 +14,8 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from datetime import datetime, timezone
 
+from sqlalchemy import text
+
 SCORER_VERSION = "1.0.0"
 
 # The positive weights sum to exactly 100, grad_program included. An earlier
@@ -190,3 +192,151 @@ def why_and_concerns(features: Sequence[Mapping], n: int = 5) -> tuple[list[str]
     why = [f["evidence"] for f in ranked if f["contribution"] > 0][:n]
     concerns = [f["evidence"] for f in reversed(ranked) if f["contribution"] <= 0][:n]
     return why, concerns
+
+
+# ---------------------------------------------------------------- persistence
+
+def effective_version(weights: Mapping) -> str:
+    """SCORER_VERSION plus a hash of the weights actually used.
+
+    job_scores has UNIQUE (job_group_id, scorer_version) and ja_worker has no
+    DELETE on score_features, so a row cannot be rewritten in place -- which is
+    the schema's intent: a score is a record of what one scorer version
+    concluded. But the weights live in app.settings so they can be tuned
+    without a deploy, and tuning them without changing the version would leave
+    every existing score stale and un-recomputable. Folding the weights into
+    the version means editing a weight re-scores the corpus automatically.
+    """
+    import hashlib
+    import json as _json
+    blob = _json.dumps({k: float(v) for k, v in sorted(weights.items())},
+                       separators=(",", ":"))
+    return f"{SCORER_VERSION}+{hashlib.sha256(blob.encode()).hexdigest()[:8]}"
+
+
+UNSCORED = text("""
+SELECT g.id
+  FROM app.job_groups g
+ WHERE g.status IN ('READY', 'REVIEW_REQUIRED')
+   AND NOT EXISTS (SELECT 1 FROM app.job_scores s
+                    WHERE s.job_group_id = g.id AND s.scorer_version = :ver)
+ ORDER BY g.id
+ LIMIT :n
+""")
+
+JOB_ROW = text("""
+SELECT g.id, g.is_grad_program,
+       p.seniority_class, p.location_class, p.employment_type, p.salary, p.posted_at,
+       (SELECT w.classification FROM app.work_right_assessments w
+         WHERE w.job_group_id = g.id ORDER BY w.created_at DESC LIMIT 1) AS work_rights_class,
+       (SELECT a.skills FROM app.job_analyses a
+         WHERE a.job_group_id = g.id ORDER BY a.analysis_version DESC LIMIT 1) AS job_skills
+  FROM app.job_groups g
+  JOIN app.postings p ON p.id = g.canonical_posting_id
+ WHERE g.id = :g
+""")
+
+PROFILE_SKILLS = text("""
+SELECT f.body FROM app.profile_facts f
+  JOIN app.profile_versions v ON v.id = f.profile_version_id
+ WHERE v.is_active AND f.kind = 'skill'
+""")
+
+INSERT_SCORE = text("""
+INSERT INTO app.job_scores
+  (job_group_id, base_score, llm_adjustment, score, band, scorer_version)
+VALUES (:g, :base, 0, :score, :band, :ver)
+ON CONFLICT (job_group_id, scorer_version) DO NOTHING
+RETURNING id
+""")
+
+INSERT_FEATURE = text("""
+INSERT INTO app.score_features (score_id, feature, weight, value, contribution, evidence)
+VALUES (:s, :f, :w, :v, :c, :e)
+""")
+
+
+def _as_list(value) -> list:
+    """jsonb arrives as list or str depending on driver codec registration --
+    the same guard screen.py and web/routes.py already carry."""
+    import json as _json
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str) and value:
+        try:
+            loaded = _json.loads(value)
+        except ValueError:
+            return []
+        return loaded if isinstance(loaded, list) else []
+    return []
+
+
+def _skill_names(rows) -> list[str]:
+    """job_analyses.skills is a list of either plain strings or objects with a
+    name; accept both so a prompt-format change does not silently zero the
+    skill_overlap feature."""
+    out = []
+    for item in rows:
+        if isinstance(item, str):
+            out.append(item)
+        elif isinstance(item, Mapping):
+            name = item.get("name") or item.get("skill")
+            if name:
+                out.append(str(name))
+    return out
+
+
+async def score_pending(limit: int = 200) -> dict:
+    """Score every READY/REVIEW_REQUIRED group that has no score at the current
+    effective version. Deterministic and free -- no model is called."""
+    import json as _json
+
+    from job_agent.ai.client import load_config
+    from job_agent.core.db import tx
+    from job_agent.pipeline.screen import _profile
+
+    counts = {"scored": 0, "high": 0, "skipped": 0}
+    async with tx() as conn:
+        cfg = await load_config(conn)
+        weights = {**DEFAULT_WEIGHTS, **(cfg.get("score.weights") or {})}
+        ver = effective_version(weights)
+        prof = await _profile(conn)
+        prefs = prof.get("preferences", {})
+        profile_skills = [r.body for r in (await conn.execute(PROFILE_SKILLS)).all()]
+        gids = [r.id for r in (await conn.execute(UNSCORED, {"ver": ver, "n": limit})).all()]
+
+    for gid in gids:
+        async with tx() as conn:
+            row = (await conn.execute(JOB_ROW, {"g": gid})).mappings().first()
+            if row is None:
+                counts["skipped"] += 1
+                continue
+            salary = row["salary"]
+            if isinstance(salary, str):
+                salary = _json.loads(salary or "{}")
+            job = {
+                "seniority_class": row["seniority_class"],
+                "location_class": row["location_class"],
+                "employment_type": row["employment_type"],
+                "salary": salary or {},
+                "posted_at": row["posted_at"],
+                "is_grad_program": row["is_grad_program"],
+                "work_rights_class": row["work_rights_class"],
+                "job_skills": _skill_names(_as_list(row["job_skills"])),
+                "profile_skills": profile_skills,
+            }
+            base, band, features = score(job, prefs, weights)
+            sid = (await conn.execute(INSERT_SCORE, {
+                "g": gid, "base": base, "score": final_score(base), "band": band,
+                "ver": ver})).scalar()
+            if sid is None:          # raced with another worker; its rows stand
+                counts["skipped"] += 1
+                continue
+            for f in features:
+                await conn.execute(INSERT_FEATURE, {
+                    "s": sid, "f": f["feature"], "w": f["weight"], "v": f["value"],
+                    "c": f["contribution"], "e": f["evidence"]})
+            counts["scored"] += 1
+            if band == "HIGH":
+                counts["high"] += 1
+    return counts
