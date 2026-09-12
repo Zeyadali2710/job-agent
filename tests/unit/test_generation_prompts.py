@@ -104,3 +104,11 @@ def test_the_question_list_pairs_key_with_text():
     q = answers.render_questions([
         {"question_key": "why_us", "question_text": "Why do you want to work here?"}])
     assert q == "why_us | Why do you want to work here?"
+
+
+def test_the_cover_letter_prompt_forbids_merging_two_facts_into_one_claim():
+    """The failure the validator structurally cannot catch: both "five"s were
+    real, but one was a university team and the other a client contract, and
+    the sentence implied they were the same engagement. Entity checking sees
+    relations between facts as invisible, so the prompt has to carry this."""
+    assert "never merge two facts" in cover_letter.SYSTEM.lower()

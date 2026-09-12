@@ -91,6 +91,30 @@ def test_an_entity_shaped_first_word_is_still_checked():
         facts=FACTS, job_text=AD))
 
 
+# ------------------------------------------------------- numbers as words
+
+def test_a_spelled_out_number_is_supported_by_its_digit_form():
+    """A fact saying "5-person" supports a letter saying "five-person"."""
+    assert check_text("I led a five-person team.", source_ids=["proj.ancr.b1"],
+                      facts=FACTS) == []
+
+
+def test_a_spelled_out_number_that_matches_nothing_is_caught():
+    """The hole this closed: 741 and 100% were checked from the start, but
+    "five" and "two-week" were not checked at all, so a model that cannot
+    invent a digit could still invent a quantity in words."""
+    f = check_text("I led a seven-person team.", source_ids=["proj.ancr.b1"],
+                   facts=FACTS)
+    assert kinds(f) == ["UNSUPPORTED_NUMBER"] and "seven" in f[0].detail
+
+
+def test_a_number_word_inside_another_word_is_not_a_number():
+    """Without a word boundary, "Someone" contains "one" and every letter
+    mentioning anyone fails."""
+    assert check_text("Someone honest.", source_ids=["skill.python"],
+                      facts=FACTS) == []
+
+
 # ------------------------------------------------------------ tokenising
 
 @pytest.mark.parametrize("text,expected", [

@@ -50,8 +50,12 @@ async def claim(conn, worker: str, n: int = 1, kinds: list[str] | None = None):
 
 
 async def complete(conn, item_id: int) -> None:
+    # last_error is cleared too: a retry that succeeds used to leave the DONE
+    # row still displaying the error from the attempt before it, which reads as
+    # "this failed" in every status query.
     await conn.execute(text(
-        "UPDATE app.work_items SET state='DONE', locked_by=NULL, locked_at=NULL WHERE id=:i"),
+        "UPDATE app.work_items SET state='DONE', locked_by=NULL, locked_at=NULL, "
+        "last_error=NULL WHERE id=:i"),
         {"i": item_id})
 
 

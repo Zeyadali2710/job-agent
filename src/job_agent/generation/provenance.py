@@ -34,6 +34,23 @@ _TOKEN = re.compile(r"[A-Za-z][A-Za-z0-9+#&'-]*(?:[./][A-Za-z0-9+#&'-]+)*")
 _NUMBER = re.compile(r"\d[\d,.]*%?")
 _SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
 
+# A model that cannot write "741" will happily write "seven hundred". Digits
+# were checked from the start; spelled-out numbers were not, and "a five-person
+# team" is exactly the kind of claim worth checking. Each word is supported by
+# either the word or the digit appearing in the corpus, so a fact saying
+# "5-person" supports "five-person" and vice versa.
+NUMBER_WORDS = {
+    "one": "1", "two": "2", "three": "3", "four": "4", "five": "5",
+    "six": "6", "seven": "7", "eight": "8", "nine": "9", "ten": "10",
+    "eleven": "11", "twelve": "12", "thirteen": "13", "fourteen": "14",
+    "fifteen": "15", "sixteen": "16", "seventeen": "17", "eighteen": "18",
+    "nineteen": "19", "twenty": "20", "thirty": "30", "forty": "40",
+    "fifty": "50", "sixty": "60", "seventy": "70", "eighty": "80",
+    "ninety": "90", "hundred": "100", "thousand": "1000",
+}
+_WORD_NUMBER = re.compile(
+    r"\b(" + "|".join(sorted(NUMBER_WORDS, key=len, reverse=True)) + r")\b", re.I)
+
 # Capitalised words that carry no factual claim. Kept short on purpose: every
 # entry here is a hole in the check, so a word earns its place only by being
 # both common and contentless.
@@ -100,6 +117,13 @@ def _numbers(text: str) -> list[str]:
     return [m.group(0) for m in _NUMBER.finditer(text)]
 
 
+def _word_numbers(text: str) -> list[str]:
+    """"a five-person team" is a factual claim. "I have been here for one year"
+    is not, but checking it costs nothing: the corpus almost always contains the
+    word, and a false positive here is one review rather than a false claim."""
+    return [m.group(0) for m in _WORD_NUMBER.finditer(text)]
+
+
 def _number_supported(raw: str, corpus: str) -> bool:
     """Compare on digits alone. "90%" is supported by "90", "1,200" by "1200",
     and "8.5" only by "8.5" -- a trailing period from a sentence end is stripped
@@ -136,6 +160,12 @@ def check_text(text: str, *, source_ids: Sequence[str], facts: Mapping[str, str]
             findings.append(Finding(
                 "UNSUPPORTED_NUMBER",
                 f"{num!r} appears in no cited fact and not in the job ad"))
+    for word in _word_numbers(text):
+        digit = NUMBER_WORDS[word.lower()]
+        if word.lower() not in corpus and digit not in corpus:
+            findings.append(Finding(
+                "UNSUPPORTED_NUMBER",
+                f"{word!r} (={digit}) appears in no cited fact and not in the job ad"))
     return findings
 
 
