@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block body %}
+<form hx-get="/partials/applications" hx-target="#feed" hx-trigger="change">
+  <select name="status">
+    <option value="">all</option>
+    {% for s in ['DRAFT','READY','AWAITING_APPROVAL','APPROVED','SUBMITTED','CONFIRMED','WITHDRAWN','FAILED_PERMANENT'] %}
+    <option value="{{ s }}" {% if s==status %}selected{% endif %}>{{ s }}</option>{% endfor %}
+  </select>
+</form>
+<div id="feed">{% include "_applications.html" %}</div>
+{% endblock %}

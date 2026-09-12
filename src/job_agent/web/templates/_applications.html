@@ -1,0 +1,16 @@
+{# No wrapper: the filter swaps this into #feed with the default innerHTML. #}
+<table>
+<tr><th>Job</th><th>Company</th><th>Score</th><th>Status</th><th>Docs</th><th>Open Qs</th><th>Updated</th></tr>
+{% for a in applications %}
+<tr>
+  <td><a href="/applications/{{ a.id }}">{{ a.title }}</a></td>
+  <td>{{ a.company or '—' }}</td>
+  <td>{{ '%.1f'|format(a.score) if a.score is not none else '—' }}</td>
+  <td><span class="pill {{ 'warn' if a.status=='AWAITING_APPROVAL' else ('ok' if a.status in ('APPROVED','SUBMITTED','CONFIRMED') else '') }}">{{ a.status }}</span>
+      <div class="mut" style="font-size:12px">mode {{ a.mode }}</div></td>
+  <td>{{ a.documents }}</td>
+  <td class="{{ 'bad' if a.open_questions else 'mut' }}">{{ a.open_questions }}</td>
+  <td class="mut">{{ a.updated_sydney or '—' }}</td>
+</tr>
+{% else %}<tr><td colspan="7" class="mut">no applications yet</td></tr>{% endfor %}
+</table>

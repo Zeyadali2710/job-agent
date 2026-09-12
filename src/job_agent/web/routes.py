@@ -6,11 +6,13 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Form, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import text
 
+from job_agent.application.route import set_status
+from job_agent.application.transitions import IllegalTransition
 from job_agent.core.config import get_settings
 from job_agent.core.db import engine
 
@@ -183,6 +185,125 @@ async def job_detail(request: Request, gid: int):
         ctx(request, "jobs", job=j, postings=postings,
             work_rights=wr[0] if wr else None, clearance=cl[0] if cl else None,
             salary=as_dict(j.get("salary")), events=ev, description=j.get("description")))
+
+
+# ------------------------------------------------------------- applications
+
+APPLICATIONS_SQL = """
+SELECT a.id, a.status, a.mode, a.updated_at, a.job_group_id,
+       g.title, c.name AS company, s.score,
+       (SELECT count(*) FROM app.open_questions o
+         WHERE o.application_id = a.id AND o.resolved_at IS NULL) AS open_questions,
+       (SELECT count(*) FROM app.generated_documents d
+         WHERE d.application_id = a.id AND d.path IS NOT NULL) AS documents
+  FROM app.applications a
+  JOIN app.job_groups g ON g.id = a.job_group_id
+  LEFT JOIN app.companies c ON c.id = g.company_id
+  LEFT JOIN app.current_job_scores s ON s.job_group_id = g.id
+ WHERE (:status = '' OR a.status = :status)
+ ORDER BY CASE a.status WHEN 'AWAITING_APPROVAL' THEN 0 ELSE 1 END,
+          s.score DESC NULLS LAST, a.id DESC
+ LIMIT 200"""
+
+
+async def _applications(status: str):
+    return [{**dict(r), "updated_sydney": syd(r["updated_at"])}
+            for r in await q(APPLICATIONS_SQL, status=status or "")]
+
+
+@router.get("/applications", response_class=HTMLResponse)
+async def applications(request: Request, status: str = ""):
+    return templates.TemplateResponse(
+        request, "applications.html",
+        ctx(request, "applications", applications=await _applications(status),
+            status=status))
+
+
+@router.get("/partials/applications", response_class=HTMLResponse)
+async def partial_applications(request: Request, status: str = ""):
+    return templates.TemplateResponse(
+        request, "_applications.html",
+        ctx(request, "applications", applications=await _applications(status)))
+
+
+@router.get("/applications/{app_id}", response_class=HTMLResponse)
+async def application_detail(request: Request, app_id: int):
+    rows = await q("""
+        SELECT a.id, a.status, a.mode, a.created_at, a.updated_at, a.job_group_id,
+               g.title, g.location_class, c.name AS company, s.score,
+               p.canonical_url
+          FROM app.applications a
+          JOIN app.job_groups g ON g.id = a.job_group_id
+          LEFT JOIN app.postings p ON p.id = g.canonical_posting_id
+          LEFT JOIN app.companies c ON c.id = g.company_id
+          LEFT JOIN app.current_job_scores s ON s.job_group_id = g.id
+         WHERE a.id = :a""", a=app_id)
+    if not rows:
+        return HTMLResponse("not found", status_code=404)
+    app = {**dict(rows[0]), "created_sydney": syd(rows[0]["created_at"]),
+           "updated_sydney": syd(rows[0]["updated_at"])}
+
+    docs = []
+    for d in await q("""
+        SELECT kind, validator_state, validator_findings, content, path, sha256,
+               model, created_at
+          FROM app.generated_documents WHERE application_id = :a ORDER BY kind""",
+            a=app_id):
+        content = as_dict(d["content"])
+        findings = d["validator_findings"]
+        if isinstance(findings, str):
+            try:
+                findings = json.loads(findings)
+            except ValueError:
+                findings = []
+        docs.append({
+            **dict(d), "content": content,
+            "findings": findings or [],
+            "paragraphs": [p.get("text", "") for p in content.get("paragraphs") or []],
+            "created_sydney": syd(d["created_at"]),
+        })
+
+    answers = await q("""
+        SELECT question_key, question_text, answer_text, can_answer, required,
+               source_ids
+          FROM app.application_answers WHERE application_id = :a ORDER BY id""",
+        a=app_id)
+    open_questions = await q("""
+        SELECT question_text, reason FROM app.open_questions
+         WHERE application_id = :a AND resolved_at IS NULL ORDER BY id""", a=app_id)
+    history = [{**dict(h), "at_sydney": syd(h["at"])} for h in await q("""
+        SELECT from_status, to_status, actor, reason, at
+          FROM app.application_status_history
+         WHERE application_id = :a ORDER BY at DESC, id DESC LIMIT 50""", a=app_id)]
+
+    return templates.TemplateResponse(
+        request, "application_detail.html",
+        ctx(request, "applications", app=app, documents=docs, answers=answers,
+            open_questions=open_questions, history=history,
+            can_act=app["status"] in ("AWAITING_APPROVAL", "APPROVED", "READY")))
+
+
+@router.post("/applications/{app_id}/decision")
+async def application_decision(app_id: int, decision: str = Form(...),
+                               reason: str = Form("")):
+    """Approve or reject. Approving sets APPROVED and stops there.
+
+    Nothing here submits anything, and nothing here can: submission inserts an
+    application_attempt, which is guarded by DRY_RUN in the environment, in an
+    in-function assertion, and in a database trigger. None of those three is
+    reachable from this handler.
+    """
+    target = {"approve": "APPROVED", "reject": "WITHDRAWN",
+              "unapprove": "AWAITING_APPROVAL"}.get(decision)
+    if target is None:
+        return HTMLResponse(f"unknown decision {decision!r}", status_code=400)
+    try:
+        await set_status(app_id, target, actor="dashboard", reason=reason)
+    except IllegalTransition as exc:
+        return HTMLResponse(str(exc), status_code=409)
+    except ValueError as exc:
+        return HTMLResponse(str(exc), status_code=404)
+    return RedirectResponse(f"/applications/{app_id}", status_code=303)
 
 
 async def _pipeline():

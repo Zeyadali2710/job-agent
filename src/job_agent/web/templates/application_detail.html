@@ -1,0 +1,77 @@
+{% extends "base.html" %}{% block body %}
+<h2>{{ app.title }}</h2>
+<p class="mut">
+  {{ app.company or '—' }} · {{ app.location_class or '—' }} ·
+  score {{ '%.1f'|format(app.score) if app.score is not none else '—' }} ·
+  <span class="pill">{{ app.status }}</span> mode {{ app.mode }} ·
+  drafted {{ app.created_sydney }}
+  {% if app.canonical_url %} · <a href="{{ app.canonical_url }}" rel="noopener">job posting</a>{% endif %}
+  · <a href="/jobs/{{ app.job_group_id }}">job detail</a>
+</p>
+
+{# The decision. Approving records APPROVED and stops -- submission is a
+   separate phase and is guarded by DRY_RUN in three independent places. #}
+{% if can_act %}
+<form method="post" action="/applications/{{ app.id }}/decision" style="margin:12px 0">
+  <input name="reason" placeholder="reason (optional)" style="min-width:260px">
+  <button name="decision" value="approve">Approve</button>
+  <button name="decision" value="reject">Reject</button>
+  {% if app.status == 'APPROVED' %}<button name="decision" value="unapprove">Send back</button>{% endif %}
+</form>
+{% else %}
+<p class="mut">No action available from {{ app.status }}.</p>
+{% endif %}
+
+{% if open_questions %}
+<h3>Unanswered questions</h3>
+<p class="mut">Architecture §9: a required question left unanswered holds the application.</p>
+<table><tr><th>Question</th><th>Why</th></tr>
+{% for o in open_questions %}
+<tr><td>{{ o.question_text }}</td><td class="mut">{{ o.reason or '—' }}</td></tr>
+{% endfor %}</table>
+{% endif %}
+
+<h3>Documents</h3>
+{% for d in documents %}
+<table style="margin-bottom:6px">
+  <tr><th>{{ d.kind }}</th>
+      <th><span class="pill {{ 'bad' if d.validator_state != 'PASSED' else 'ok' }}">{{ d.validator_state }}</span></th>
+      <th class="mut">{{ d.model or 'deterministic' }} · {{ d.created_sydney }}</th></tr>
+</table>
+{% if d.findings %}
+<ul>{% for f in d.findings %}
+  <li class="{{ 'mut' if f.kind == 'MERGED_SOURCES' else 'bad' }}">{{ f.kind }}: {{ f.detail }}</li>
+{% endfor %}</ul>
+{% endif %}
+{% if d.paragraphs %}
+{% for para in d.paragraphs %}<p>{{ para }}</p>{% endfor %}
+{% elif d.kind == 'RESUME' %}
+<p class="mut">
+  {{ d.content.get('experience', [])|length }} roles ·
+  {{ d.content.get('projects', [])|length }} projects ·
+  {{ d.content.get('skills', [])|length }} skills
+</p>
+{% endif %}
+<p class="mut" style="font-size:12px">{{ d.path or 'not rendered' }}</p>
+{% else %}<p class="mut">nothing generated yet</p>{% endfor %}
+
+<h3>Answers</h3>
+<table><tr><th>Question</th><th>Answer</th><th>Cited</th></tr>
+{% for a in answers %}
+<tr>
+  <td>{{ a.question_text }}{% if a.required %} <span class="mut">(required)</span>{% endif %}</td>
+  <td>{% if a.can_answer %}{{ a.answer_text }}{% else %}<span class="bad">could not answer</span>{% endif %}</td>
+  <td class="mut">{{ a.source_ids|length }}</td>
+</tr>
+{% else %}<tr><td colspan="3" class="mut">no answers drafted</td></tr>{% endfor %}
+</table>
+
+<h3>History</h3>
+<table><tr><th>When</th><th>Change</th><th>Actor</th><th>Reason</th></tr>
+{% for h in history %}
+<tr><td class="mut">{{ h.at_sydney }}</td>
+    <td>{{ h.from_status or '—' }} → {{ h.to_status }}</td>
+    <td>{{ h.actor }}</td><td class="mut">{{ h.reason or '' }}</td></tr>
+{% else %}<tr><td colspan="4" class="mut">no history</td></tr>{% endfor %}
+</table>
+{% endblock %}

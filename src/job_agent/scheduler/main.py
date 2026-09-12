@@ -57,6 +57,10 @@ async def enqueue_generate() -> None:
     await _enqueue_kind("generate")
 
 
+async def enqueue_route() -> None:
+    await _enqueue_kind("route")
+
+
 async def daily_summary() -> None:
     async with tx() as conn:
         await enqueue(conn, "daily_summary", {}, dedupe_key=None, priority=200)
@@ -97,15 +101,26 @@ def build() -> AsyncIOScheduler:
     sched.add_job(enqueue_notify_matches,
                   CronTrigger(minute="7,17,27,37,47,57", timezone=SYDNEY),
                   id="notify_matches", replace_existing=True)
-    # Drafting is hourly, not every ten minutes: a cover letter is the most
-    # expensive call in the system and the set of jobs worth drafting for does
-    # not change between :10 and :20. generate follows draft by two minutes so
-    # the applications it looks for already exist; the `render` item it enqueues
-    # is picked up by the renderer, which polls rather than waiting on a cron.
-    sched.add_job(enqueue_draft, CronTrigger(minute=25, timezone=SYDNEY),
+    # Once a day, not hourly. Drafting is the most expensive thing this system
+    # does and the set of jobs worth drafting for does not change between 09:25
+    # and 10:25. The arithmetic that settled it, at measured prices:
+    #
+    #   cover letter  0.026 AUD   answers  0.028 AUD   = 0.054 per application
+    #   hourly x 5 drafts = 6.5 AUD/day  -> the 7 AUD monthly cap in one day
+    #   daily  x 5 drafts = 8.1 AUD/month -> still over the cap
+    #   daily  x 2 drafts = 3.2 AUD/month -> fits, with room for enrichment
+    #
+    # So the cadence and generate.max_drafts_per_run are one decision, not two.
+    # 07:25 Sydney puts the drafts in front of you before the working day
+    # rather than accumulating overnight.
+    sched.add_job(enqueue_draft, CronTrigger(hour=7, minute=25, timezone=SYDNEY),
                   id="draft", replace_existing=True)
-    sched.add_job(enqueue_generate, CronTrigger(minute=27, timezone=SYDNEY),
+    sched.add_job(enqueue_generate, CronTrigger(hour=7, minute=30, timezone=SYDNEY),
                   id="generate", replace_existing=True)
+    # Routing is free -- no model, pure rules -- so it runs often enough to pick
+    # up an application as soon as its documents finish rendering.
+    sched.add_job(enqueue_route, CronTrigger(minute="9,39", timezone=SYDNEY),
+                  id="route", replace_existing=True)
     return sched
 
 

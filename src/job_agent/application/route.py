@@ -12,9 +12,22 @@ import json
 
 from sqlalchemy import text
 
+from job_agent.ai.client import decode_jsonb
 from job_agent.application import rules as R
 from job_agent.application.transitions import check
 from job_agent.core.db import tx
+
+
+def advisories(docs) -> list[str]:
+    """MERGED_SOURCES findings across an application's documents. Advisory
+    only: validator_state is already PASSED or the application would not be
+    here, so these are things to read, not reasons to stop."""
+    out = []
+    for d in docs:
+        for f in decode_jsonb(d.get("validator_findings")) or ():
+            if isinstance(f, dict) and f.get("kind") == "MERGED_SOURCES":
+                out.append(str(f.get("detail") or ""))
+    return out
 
 CANDIDATES = text("""
 SELECT a.id AS app_id, a.status, a.mode, a.job_group_id,
@@ -31,7 +44,8 @@ SELECT a.id AS app_id, a.status, a.mode, a.job_group_id,
 """)
 
 DOCUMENTS = text("""
-SELECT kind, validator_state, path FROM app.generated_documents
+SELECT kind, validator_state, path, validator_findings
+  FROM app.generated_documents
  WHERE application_id = :a
 """)
 
@@ -147,7 +161,11 @@ async def route_pending(limit: int = 20) -> dict:
                         "title": row["title"], "company": row["company"],
                         "score": float(row["score"] or 0),
                         "rule": decision.rule, "reason": decision.reason,
-                        "documents": sorted(d["kind"] for d in docs)})})
+                        "documents": sorted(d["kind"] for d in docs),
+                        # Advisories go on the card, not just in the dashboard:
+                        # a paragraph that merges two engagements is exactly
+                        # what a 90-second phone review needs to see first.
+                        "advisories": advisories(docs)})})
                 counts["awaiting"] += 1
             elif decision.status == "APPROVED":
                 approved_today += 1

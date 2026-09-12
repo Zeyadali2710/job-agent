@@ -85,6 +85,36 @@ COLUMNS = [{"label": "READY", "count": 3}]
 WORK = [{"kind": "poll_source", "state": "PENDING", "count": 1,
          "oldest_sydney": "2025-06-01 10:00"}]
 OUTBOX = {"pending": 1, "sent": 9, "dead": 0, "last_sent_sydney": "2025-06-01 19:00"}
+APPLICATIONS = [{"id": 5, "status": "AWAITING_APPROVAL", "mode": 2, "job_group_id": 9340,
+                 "title": "Graduate Engineer", "company": "Acme", "score": 58.6,
+                 "open_questions": 2, "documents": 2,
+                 "updated_sydney": "2026-09-13 09:00"}]
+APP = {"id": 5, "status": "AWAITING_APPROVAL", "mode": 2, "job_group_id": 9340,
+       "title": "Graduate Engineer", "location_class": "SYDNEY_CBD",
+       "company": "Acme", "score": 58.6, "canonical_url": "https://example.test/j/1",
+       "created_sydney": "2026-09-13 08:00", "updated_sydney": "2026-09-13 09:00"}
+DOCUMENTS = [
+    {"kind": "COVER_LETTER", "validator_state": "PASSED", "model": "claude-sonnet-5",
+     "path": "/app/artifacts/a.pdf", "sha256": "a" * 64,
+     "created_sydney": "2026-09-13 08:00",
+     "content": {"paragraphs": [{"text": "A paragraph."}]},
+     "paragraphs": ["A paragraph."],
+     "findings": [{"kind": "MERGED_SOURCES", "detail": "paragraph 2 spans two"}]},
+    {"kind": "RESUME", "validator_state": "PASSED", "model": None,
+     "path": "/app/artifacts/b.pdf", "sha256": "b" * 64,
+     "created_sydney": "2026-09-13 08:00",
+     "content": {"experience": [1], "projects": [1, 2], "skills": ["Python"]},
+     "paragraphs": [], "findings": []},
+]
+ANSWERS = [{"question_key": "why_us", "question_text": "Why us?",
+            "answer_text": "Because.", "can_answer": True, "required": True,
+            "source_ids": ["exp.a.b1"]},
+           {"question_key": "salary", "question_text": "Salary?", "answer_text": None,
+            "can_answer": False, "required": False, "source_ids": []}]
+OPEN_QUESTIONS = [{"question_text": "Salary?", "reason": "not in the profile facts"}]
+APP_HISTORY = [{"from_status": "READY", "to_status": "AWAITING_APPROVAL",
+                "actor": "route", "reason": "rule 'default': matched",
+                "at_sydney": "2026-09-13 09:00"}]
 
 CONTEXTS = {
     "base.html": PAGE,
@@ -105,6 +135,12 @@ CONTEXTS = {
     "_pipeline.html": {"columns": COLUMNS, "work": WORK},
     "events.html": {**PAGE, "events": EVENTS},
     "_events.html": {"events": EVENTS},
+    "applications.html": {**PAGE, "applications": APPLICATIONS, "status": ""},
+    "_applications.html": {"applications": APPLICATIONS},
+    "application_detail.html": {**PAGE, "app": APP, "documents": DOCUMENTS,
+                                "answers": ANSWERS,
+                                "open_questions": OPEN_QUESTIONS,
+                                "history": APP_HISTORY, "can_act": True},
 }
 
 
@@ -130,6 +166,9 @@ def test_template_renders_when_every_collection_is_empty(name):
         empty["salary"] = {}
     if "outbox" in empty:
         empty["outbox"] = {"pending": 0, "sent": 0, "dead": 0, "last_sent_sydney": None}
+    if "app" in empty:
+        empty["app"] = APP            # a dict, not a collection
+        empty["can_act"] = False      # the no-action-available branch
     html = env().get_template(name).render(**empty)
     assert html.strip()
 

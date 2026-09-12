@@ -133,6 +133,47 @@ def system_error(payload: Mapping, hostname: str = "") -> dict:
     }
 
 
+def application_url(hostname: str, app_id) -> str | None:
+    if not hostname or app_id is None:
+        return None
+    return f"https://{hostname}/applications/{app_id}"
+
+
+def approval_required(payload: Mapping, hostname: str = "") -> dict:
+    """Architecture 0.3: this is the card you act on from your phone. It has to
+    carry enough to decide without opening anything -- what the job is, why it
+    routed here, and what is waiting -- and a link for when it does not."""
+    fields = [
+        _field("Company", payload.get("company")),
+        _field("Score", payload.get("score")),
+        _field("Rule", payload.get("rule")),
+    ]
+    docs = payload.get("documents")
+    if docs:
+        fields.append(_field("Documents", ", ".join(str(d) for d in docs)))
+    if payload.get("reason"):
+        fields.append(_field("Why", payload["reason"], inline=False))
+    advisories = _bullets(payload.get("advisories"))
+    if advisories:
+        # Surfaced on the card, not buried in the dashboard: a paragraph that
+        # merges two engagements is exactly what a 90-second review should see.
+        fields.append(_field("Check before approving", advisories, inline=False))
+    parts = []
+    app = application_url(hostname, payload.get("application_id"))
+    if app:
+        parts.append(f"[Review and approve]({app})")
+    dash = dashboard_url(hostname, payload.get("job_group_id"))
+    if dash:
+        parts.append(f"[Job]({dash})")
+    if parts:
+        fields.append(_field("Links", "  ·  ".join(parts), inline=False))
+    return {
+        "title": _clip(f"Approval needed: {payload.get('title') or 'application'}", 256),
+        "color": YELLOW,
+        "fields": fields[:MAX_EMBED_FIELDS],
+    }
+
+
 def generic(kind: str, payload: Mapping, hostname: str = "") -> dict:
     """Fallback for the kinds whose producers land in Phases 11-15. Renders
     whatever scalar keys the payload has rather than dropping the card: an
@@ -154,6 +195,7 @@ RENDERERS = {
     "HIGH_MATCH_JOB": high_match_job,
     "DAILY_SUMMARY": daily_summary,
     "SYSTEM_ERROR": system_error,
+    "APPROVAL_REQUIRED": approval_required,
 }
 
 
