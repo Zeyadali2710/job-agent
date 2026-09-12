@@ -106,7 +106,11 @@ async def resolve(conn, posting_id: int) -> tuple[int, int, bool]:
         gid = (await conn.execute(text("""
             INSERT INTO app.job_groups (canonical_posting_id, company_id, title, location_class)
             VALUES (:p, :c, :t, :l) RETURNING id"""),
-            {"p": p.id, "c": p.company_id, "t": p.title, "l": p.location_class})).scalar()
+            {"p": p.id, "c": p.company_id, "t": p.title,
+             # NOT p.location_class: p is the row snapshot taken before the
+             # UNKNOWN reclassification above, so using it stamped the group
+             # 'UNKNOWN' even when the posting had just been resolved.
+             "l": loc_class_for_matching})).scalar()
         layer = 1
 
     await conn.execute(text("""
