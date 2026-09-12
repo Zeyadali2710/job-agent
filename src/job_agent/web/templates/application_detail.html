@@ -25,9 +25,17 @@
 {% if open_questions %}
 <h3>Unanswered questions</h3>
 <p class="mut">Architecture §9: a required question left unanswered holds the application.</p>
-<table><tr><th>Question</th><th>Why</th></tr>
+<table><tr><th>Question</th><th>Why</th><th>Your answer</th></tr>
 {% for o in open_questions %}
-<tr><td>{{ o.question_text }}</td><td class="mut">{{ o.reason or '—' }}</td></tr>
+<tr><td>{{ o.question_text }}</td>
+    <td class="mut">{{ o.reason or '—' }}</td>
+    <td>
+      <form method="post" action="/applications/{{ app.id }}/answer">
+        <input type="hidden" name="question_id" value="{{ o.id }}">
+        <input name="answer" placeholder="answer in your own words" style="min-width:280px" required>
+        <button type="submit">Save</button>
+      </form>
+    </td></tr>
 {% endfor %}</table>
 {% endif %}
 

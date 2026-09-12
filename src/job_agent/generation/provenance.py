@@ -88,6 +88,18 @@ def _corpus(parts: Sequence[str]) -> str:
     return " \n ".join(p for p in parts if p).lower()
 
 
+def _strip_possessive(tok: str) -> str:
+    """"CommBank iQ's" is the ad's own name plus an apostrophe. Without this the
+    token is iQ's, which is not a substring of the advertisement, and a letter
+    is quarantined for using the employer's name in the possessive."""
+    low = tok.lower()
+    if low.endswith("'s"):
+        return tok[:-2]
+    if low.endswith("'"):
+        return tok[:-1]
+    return tok
+
+
 def _entities(text: str) -> list[str]:
     """Entity-shaped tokens, skipping the first word of each sentence unless its
     own shape gives it away. Without that rule every sentence-initial verb --
@@ -107,7 +119,8 @@ def _entities(text: str) -> list[str]:
                 continue
             if i == 0 and not distinctive:
                 continue                                # sentence-initial word
-            if tok.lower() in STOPWORDS:
+            tok = _strip_possessive(tok)
+            if not tok or tok.lower() in STOPWORDS:
                 continue
             out.append(tok)
     return out
@@ -139,9 +152,6 @@ def check_text(text: str, *, source_ids: Sequence[str], facts: Mapping[str, str]
                job_text: str = "", extra_allowed: Sequence[str] = ()) -> list[Finding]:
     """Findings for one paragraph or answer. Empty list means it passed."""
     findings: list[Finding] = []
-
-    if not source_ids:
-        findings.append(Finding("NO_CITATION", f"{text[:80]!r} cites no source_ids"))
 
     unknown = [sid for sid in source_ids if sid not in facts]
     for sid in unknown:
@@ -218,6 +228,17 @@ def validate(blocks: Sequence[Mapping], *, facts: Mapping[str, str],
             str(b.get("text") or ""),
             source_ids=list(b.get("source_ids") or []),
             facts=facts, job_text=job_text, extra_allowed=extra_allowed)
+
+    # Citation is required of the document, not of every paragraph. A cover
+    # letter's opening and closing rest on the advertisement rather than on
+    # anything about you -- "I am writing to apply for the Analyst role at X"
+    # cites nothing because there is nothing of yours in it. An uncited
+    # paragraph is not unchecked: with no cited facts its corpus is the
+    # advertisement alone, so it can only restate the ad. What must never
+    # happen is a whole letter that cites nothing, which is what this catches.
+    if blocks and not cited_ids(blocks):
+        findings.append(Finding(
+            "NO_CITATION", "no paragraph in this document cites any profile fact"))
     return (PASSED if not findings else SUSPECTED), findings
 
 

@@ -269,7 +269,7 @@ async def application_detail(request: Request, app_id: int):
           FROM app.application_answers WHERE application_id = :a ORDER BY id""",
         a=app_id)
     open_questions = await q("""
-        SELECT question_text, reason FROM app.open_questions
+        SELECT id, question_text, reason FROM app.open_questions
          WHERE application_id = :a AND resolved_at IS NULL ORDER BY id""", a=app_id)
     history = [{**dict(h), "at_sydney": syd(h["at"])} for h in await q("""
         SELECT from_status, to_status, actor, reason, at
@@ -281,6 +281,47 @@ async def application_detail(request: Request, app_id: int):
         ctx(request, "applications", app=app, documents=docs, answers=answers,
             open_questions=open_questions, history=history,
             can_act=app["status"] in ("AWAITING_APPROVAL", "APPROVED", "READY")))
+
+
+RESOLVE_OPEN_QUESTION = """
+UPDATE app.open_questions
+   SET resolved_at = now(), resolved_answer = :answer
+ WHERE id = :q AND application_id = :a AND resolved_at IS NULL
+RETURNING question_text"""
+
+# can_answer becomes true with no source_ids: these are your own words, not a
+# model's, so there is nothing to validate them against and nothing claiming
+# they came from a profile fact.
+RECORD_ANSWER = """
+UPDATE app.application_answers
+   SET answer_text = :answer, can_answer = true, source_ids = '{}'
+ WHERE application_id = :a AND question_text = :qt"""
+
+
+@router.post("/applications/{app_id}/answer")
+async def application_answer(app_id: int, question_id: int = Form(...),
+                             answer: str = Form(...)):
+    """Answer a question the model declined. Architecture 9 says an unanswered
+    required question holds the application; this is the other half of that
+    sentence -- the way you clear it."""
+    text_answer = answer.strip()
+    if not text_answer:
+        return HTMLResponse("an answer is required", status_code=400)
+    async with engine().begin() as conn:
+        row = (await conn.execute(text(RESOLVE_OPEN_QUESTION),
+                                  {"q": question_id, "a": app_id,
+                                   "answer": text_answer})).first()
+        if row is None:
+            return HTMLResponse("no such unresolved question", status_code=404)
+        await conn.execute(text(RECORD_ANSWER),
+                           {"a": app_id, "qt": row.question_text,
+                            "answer": text_answer})
+        await conn.execute(text(
+            "INSERT INTO app.events (entity_type, entity_id, actor, action, detail) "
+            "VALUES ('application', :a, 'dashboard', 'question_answered', "
+            "CAST(:d AS jsonb))"),
+            {"a": app_id, "d": json.dumps({"question": row.question_text})})
+    return RedirectResponse(f"/applications/{app_id}", status_code=303)
 
 
 @router.post("/applications/{app_id}/decision")

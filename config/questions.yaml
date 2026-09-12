@@ -7,21 +7,28 @@
 #
 # `required: true` means an unanswered question blocks submission (architecture
 # 9: "the application cannot be submitted while any required question is
-# unanswered"). Several of these are deliberately expected to come back
-# can_answer: false -- that is the mechanism working, not failing, and each one
-# becomes an open_questions row for you to answer once.
+# unanswered"). Nothing here is required, and that is deliberate: these are
+# placeholders, not questions an employer has actually asked. Marking a
+# speculative question required held every application at DRAFT forever --
+# "why do you want to work here?" is not answerable from profile facts, so the
+# gate could never clear. Real required questions arrive from the form in
+# Phase 15, and those are the ones that should block.
+#
+# They still get drafted and still become open_questions when unanswerable, so
+# you see them and can answer them from the dashboard; they just do not hold
+# the application hostage.
 
 - question_key: why_this_role
   question_text: Why are you interested in this role?
-  required: true
+  required: false
 
 - question_key: why_this_company
   question_text: Why do you want to work for this company?
-  required: true
+  required: false
 
 - question_key: relevant_experience
   question_text: Describe your most relevant experience for this position.
-  required: true
+  required: false
 
 - question_key: technical_strength
   question_text: What is your strongest technical skill, and what have you built with it?

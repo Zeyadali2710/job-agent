@@ -111,7 +111,8 @@ ANSWERS = [{"question_key": "why_us", "question_text": "Why us?",
             "source_ids": ["exp.a.b1"]},
            {"question_key": "salary", "question_text": "Salary?", "answer_text": None,
             "can_answer": False, "required": False, "source_ids": []}]
-OPEN_QUESTIONS = [{"question_text": "Salary?", "reason": "not in the profile facts"}]
+OPEN_QUESTIONS = [{"id": 3, "question_text": "Salary?",
+                   "reason": "not in the profile facts"}]
 APP_HISTORY = [{"from_status": "READY", "to_status": "AWAITING_APPROVAL",
                 "actor": "route", "reason": "rule 'default': matched",
                 "at_sydney": "2026-09-13 09:00"}]

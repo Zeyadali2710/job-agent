@@ -71,11 +71,47 @@ def test_a_fabricated_technology_is_caught():
     assert kinds(f) == ["UNSUPPORTED_ENTITY", "UNSUPPORTED_ENTITY"]
 
 
-def test_an_uncited_paragraph_fails():
-    """Unverifiable is not the same as false, but it cannot be allowed through:
-    nothing downstream can check it."""
-    assert any(x.kind == "NO_CITATION"
-               for x in check_text("Some text.", source_ids=[], facts=FACTS))
+def test_a_document_that_cites_nothing_at_all_fails():
+    """Citation is required of the document, not of every paragraph -- but a
+    letter that rests on no fact of yours anywhere is unverifiable end to end."""
+    state, f = validate([{"text": "I am writing to apply.", "source_ids": []}],
+                        facts=FACTS, job_text=AD)
+    assert state == SUSPECTED and any(x.kind == "NO_CITATION" for x in f)
+
+
+def test_an_uncited_opening_is_allowed_when_the_document_cites_elsewhere():
+    """"I am writing to apply for the Analyst role at CommBank iQ" cites
+    nothing because there is nothing of yours in it. It is still checked: with
+    no cited facts its corpus is the advertisement alone."""
+    state, f = validate(
+        [{"text": "I am writing to apply for the Graduate Software Engineer role.",
+          "source_ids": []},
+         {"text": "Python work.", "source_ids": ["skill.python"]}],
+        facts=FACTS, job_text=AD)
+    assert state == PASSED, [str(x) for x in f]
+
+
+def test_an_uncited_paragraph_still_cannot_invent():
+    state, f = validate(
+        [{"text": "I built it with Kubernetes.", "source_ids": []},
+         {"text": "Python work.", "source_ids": ["skill.python"]}],
+        facts=FACTS, job_text=AD)
+    assert state == SUSPECTED and any("Kubernetes" in x.detail for x in f)
+
+
+def test_a_possessive_of_a_name_in_the_advertisement_is_allowed():
+    """Three real quarantines: iQ's, Group's and Starling's. The apostrophe
+    was part of the token, so the employer's own name in the possessive was
+    not a substring of the ad."""
+    ad = "We are hiring for CommBank iQ. Apparel Group also exists."
+    assert check_text("I admire CommBank iQ's work and Apparel Group's scale.",
+                      source_ids=["skill.python"], facts=FACTS, job_text=ad) == []
+
+
+def test_a_possessive_of_an_invented_name_is_still_caught():
+    assert any("Atlassian" in x.detail for x in check_text(
+        "I admire Atlassian's work.", source_ids=["skill.python"],
+        facts=FACTS, job_text=AD))
 
 
 def test_a_citation_to_a_fact_that_does_not_exist_fails():
