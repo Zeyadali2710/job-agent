@@ -171,3 +171,12 @@ def test_revalidation_is_registered_and_needs_no_model():
             / "src" / "job_agent" / "generation" / "revalidate.py"
             ).read_text(encoding="utf-8")
     assert "call_json" not in body and "build_client" not in body
+
+
+def test_parent_bodies_maps_a_bullet_to_the_record_it_belongs_to():
+    from job_agent.generation.documents import parent_bodies
+    pb = parent_bodies(FACTS)
+    assert pb["exp.armsoa.b1"] == "Product Owner, ArmsOA"
+    assert pb["proj.ancr.b1"] == "ANCR Capstone"
+    assert pb["edu.unsw.h1"] == "BSc Computer Science, UNSW"
+    assert "skill.python" not in pb

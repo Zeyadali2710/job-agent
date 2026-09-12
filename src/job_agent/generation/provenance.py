@@ -149,15 +149,25 @@ def _number_supported(raw: str, corpus: str) -> bool:
 
 
 def check_text(text: str, *, source_ids: Sequence[str], facts: Mapping[str, str],
-               job_text: str = "", extra_allowed: Sequence[str] = ()) -> list[Finding]:
-    """Findings for one paragraph or answer. Empty list means it passed."""
+               job_text: str = "", extra_allowed: Sequence[str] = (),
+               parent_bodies: Mapping[str, str] | None = None) -> list[Finding]:
+    """Findings for one paragraph or answer. Empty list means it passed.
+
+    `parent_bodies` maps a bullet id to the record it belongs to. Citing
+    "Authored an integration plan across four revisions" is citing something
+    that happened at ArmsOA, but the employer's name is on the parent fact, so
+    without this every letter that names the employer it is describing fails.
+    A bullet's evidence includes the role it belongs to.
+    """
     findings: list[Finding] = []
 
     unknown = [sid for sid in source_ids if sid not in facts]
     for sid in unknown:
         findings.append(Finding("UNKNOWN_SOURCE_ID", f"{sid!r} is not a profile fact"))
 
+    parents = parent_bodies or {}
     cited = [facts[sid] for sid in source_ids if sid in facts]
+    cited += [parents[sid] for sid in source_ids if sid in parents]
     corpus = _corpus([*cited, job_text, *extra_allowed])
 
     for ent in _entities(text):
@@ -213,7 +223,8 @@ SUSPECTED = "FABRICATION_SUSPECTED"
 
 
 def validate(blocks: Sequence[Mapping], *, facts: Mapping[str, str],
-             job_text: str = "", extra_allowed: Sequence[str] = ()
+             job_text: str = "", extra_allowed: Sequence[str] = (),
+             parent_bodies: Mapping[str, str] | None = None
              ) -> tuple[str, list[Finding]]:
     """Validate a whole document.
 
@@ -227,7 +238,8 @@ def validate(blocks: Sequence[Mapping], *, facts: Mapping[str, str],
         findings += check_text(
             str(b.get("text") or ""),
             source_ids=list(b.get("source_ids") or []),
-            facts=facts, job_text=job_text, extra_allowed=extra_allowed)
+            facts=facts, job_text=job_text, extra_allowed=extra_allowed,
+            parent_bodies=parent_bodies)
 
     # Citation is required of the document, not of every paragraph. A cover
     # letter's opening and closing rest on the advertisement rather than on

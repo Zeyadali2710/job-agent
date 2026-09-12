@@ -227,3 +227,42 @@ def test_an_advisory_is_not_a_quarantine():
         [{"text": "Python work.", "source_ids": ["skill.python"]}],
         facts=FACTS, job_text=AD)
     assert state == PASSED and findings == []
+
+
+# ------------------------------------------------- a bullet inherits its parent
+
+PARENT_BODIES = {"exp.armsoa.b1": "Product Owner, ArmsOA",
+                 "proj.ancr.b1": "Autonomous Network Correction and Recovery "
+                                 "(ANCR) - UNSW COMP3900 Capstone"}
+BULLETS = {"exp.armsoa.b1": "Authored an integration plan across four revisions",
+           "proj.ancr.b1": "Product Owner for a 5-person engineering team"}
+
+
+def test_naming_the_employer_a_cited_bullet_belongs_to_is_supported():
+    """Ten real quarantines in one shape: ArmsOA, UNSW, YSpot and ANCR. The
+    bullet carries what was done; the employer, institution and project name
+    live on the parent record. Citing the bullet is citing something that
+    happened at that employer."""
+    assert check_text("At ArmsOA I authored an integration plan.",
+                      source_ids=["exp.armsoa.b1"], facts=BULLETS,
+                      parent_bodies=PARENT_BODIES) == []
+
+
+def test_the_parent_covers_an_institution_and_a_project_name_too():
+    assert check_text("My UNSW ANCR capstone led a 5-person team.",
+                      source_ids=["proj.ancr.b1"], facts=BULLETS,
+                      parent_bodies=PARENT_BODIES) == []
+
+
+def test_inheriting_the_parent_does_not_let_a_different_employer_through():
+    f = check_text("At Atlassian I authored an integration plan.",
+                   source_ids=["exp.armsoa.b1"], facts=BULLETS,
+                   parent_bodies=PARENT_BODIES)
+    assert [x.kind for x in f] == ["UNSUPPORTED_ENTITY"] and "Atlassian" in f[0].detail
+
+
+def test_a_parent_body_is_only_reachable_through_a_cited_child():
+    """Citing nothing does not give you every parent in the profile."""
+    f = check_text("At ArmsOA I did things.", source_ids=["proj.ancr.b1"],
+                   facts=BULLETS, parent_bodies=PARENT_BODIES)
+    assert any("ArmsOA" in x.detail for x in f)

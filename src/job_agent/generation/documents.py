@@ -183,6 +183,25 @@ def parent_of(facts) -> dict[str, str]:
     return out
 
 
+def parent_bodies(facts) -> dict[str, str]:
+    """bullet id -> the full body of the record it belongs to.
+
+    "Product Owner, ArmsOA" for an experience bullet, the project's name for a
+    project bullet, "BSc Computer Science, UNSW" for an education highlight.
+    The employer, the institution and the project name live there and nowhere
+    else, so a letter that names the thing it is describing needs them.
+    """
+    out: dict[str, str] = {}
+    for f in facts:
+        if f.kind not in ("experience", "project", "education"):
+            continue
+        d = f.data or {}
+        for b in (d.get("bullets") or d.get("highlights") or ()):
+            if b.get("id"):
+                out[b["id"]] = f.body
+    return out
+
+
 def job_text(title: str, company: str | None, description: str | None) -> str:
     """The advertisement as the validator sees it: everything the model was
     shown, so an entity it borrowed from the ad is not read as invented."""
@@ -294,7 +313,8 @@ async def generate_pending(limit: int = 5, application_id: int | None = None) ->
         blocks = [b for b in (data.get("paragraphs") or []) if b.get("text")]
         state, findings = provenance.validate(
             blocks, facts=all_facts, job_text=ad,
-            extra_allowed=[row["company"] or "", row["title"]])
+            extra_allowed=[row["company"] or "", row["title"]],
+            parent_bodies=parent_bodies(facts))
         # Advisories do not change the verdict; they are what the approval step
         # should read first.
         findings = findings + provenance.merged_source_advisories(

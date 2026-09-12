@@ -21,7 +21,8 @@ from job_agent.ai.client import decode_jsonb
 from job_agent.core.db import tx
 from job_agent.core.queue import enqueue
 from job_agent.generation import provenance
-from job_agent.generation.documents import job_text, load_facts, parent_of
+from job_agent.generation.documents import (
+    job_text, load_facts, parent_bodies, parent_of)
 from job_agent.generation.select import facts_by_id
 
 DOCUMENTS = text("""
@@ -68,6 +69,7 @@ async def revalidate_pending(limit: int = 50,
 
     all_facts = facts_by_id(facts)
     parents = parent_of(facts)
+    bodies = parent_bodies(facts)
 
     for row in rows:
         content = decode_jsonb(row["content"]) or {}
@@ -77,7 +79,8 @@ async def revalidate_pending(limit: int = 50,
         ad = job_text(row["title"], row["company"], row["description"])
         state, findings = provenance.validate(
             blocks, facts=all_facts, job_text=ad,
-            extra_allowed=[row["company"] or "", row["title"]])
+            extra_allowed=[row["company"] or "", row["title"]],
+            parent_bodies=bodies)
         findings = findings + provenance.merged_source_advisories(blocks, parents)
 
         was = row["validator_state"]

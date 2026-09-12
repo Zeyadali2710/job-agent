@@ -23,7 +23,8 @@ from job_agent.ai.prompts import answers as prompt
 from job_agent.core.config import get_settings
 from job_agent.core.db import tx
 from job_agent.generation import provenance
-from job_agent.generation.documents import ONE_APPLICATION, _analysis, job_text, load_facts
+from job_agent.generation.documents import (
+    ONE_APPLICATION, _analysis, job_text, load_facts, parent_bodies)
 from job_agent.generation.select import facts_by_id, select, selected_facts
 
 QUESTIONS_FILE = Path("/app/config/questions.yaml")
@@ -148,7 +149,8 @@ async def answer_questions(application_id: int, questions=None) -> dict:
                 state, findings = provenance.validate(
                     [{"text": a["answer_text"], "source_ids": a["source_ids"]}],
                     facts=all_facts, job_text=ad,
-                    extra_allowed=[row["company"] or "", row["title"]])
+                    extra_allowed=[row["company"] or "", row["title"]],
+                    parent_bodies=parent_bodies(facts))
                 if state != provenance.PASSED:
                     # Downgraded, not stored as an answer: an answer that fails
                     # provenance is worse than no answer, because it looks ready.
