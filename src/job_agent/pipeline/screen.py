@@ -5,7 +5,7 @@ import json
 from sqlalchemy import text
 
 from job_agent.core.db import tx
-from job_agent.screening import clearance, location, salary, seniority
+from job_agent.screening import clearance, grad, location, salary, seniority
 
 
 async def _profile(conn) -> dict:
@@ -88,9 +88,15 @@ async def screen_group(conn, gid: int, prof: dict) -> tuple[str, str | None]:
     # job_groups.location_class is a denormalised copy of the canonical
     # posting's, and the dashboard reads the group's. Without this the two
     # drift apart again the moment a re-screen changes the classification.
+    #
+    # is_grad_program and intake_year are set here too: architecture 6.3 specs
+    # them, nothing had ever written them, and the scorer's 10-point
+    # grad_program feature was therefore dead for every job in the corpus.
+    is_grad, intake_year = grad.detect(p.title, p.description)
     await conn.execute(text(
-        "UPDATE app.job_groups SET location_class=:l WHERE id=:g"),
-        {"l": loc_class, "g": gid})
+        "UPDATE app.job_groups SET location_class=:l, is_grad_program=:gp, "
+        "intake_year=:iy WHERE id=:g"),
+        {"l": loc_class, "gp": is_grad, "iy": intake_year, "g": gid})
 
     await conn.execute(text("""
         INSERT INTO app.work_right_assessments (job_group_id, classification, clause_verbatim, decided_by)

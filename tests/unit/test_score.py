@@ -191,9 +191,9 @@ def test_effective_version_changes_when_weights_change():
     weights live in app.settings to be tuned without a deploy -- folding them
     into the version is what makes a tweak re-score instead of leaving every
     existing score stale and unreachable."""
-    from job_agent.pipeline.score import effective_version
+    from job_agent.pipeline.score import SCORER_VERSION, effective_version
     base = effective_version(DEFAULT_WEIGHTS)
-    assert base.startswith("1.0.0+")
+    assert base.startswith(f"{SCORER_VERSION}+")
     assert effective_version({**DEFAULT_WEIGHTS, "freshness": 9}) != base
     assert effective_version(dict(DEFAULT_WEIGHTS)) == base, "must be stable"
 

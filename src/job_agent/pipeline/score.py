@@ -16,7 +16,10 @@ from datetime import datetime, timezone
 
 from sqlalchemy import text
 
-SCORER_VERSION = "1.0.0"
+# 1.1.0: grad_program became a live feature. The scorer code is unchanged, but
+# its inputs are not -- nothing had ever set job_groups.is_grad_program, so the
+# 10-point feature scored zero for the entire corpus. Bumping re-scores it.
+SCORER_VERSION = "1.1.0"
 
 # The positive weights sum to exactly 100, grad_program included. An earlier
 # cut treated it as a bonus on top of 100, which meant a strong job hit the
