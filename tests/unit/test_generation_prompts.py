@@ -112,3 +112,10 @@ def test_the_cover_letter_prompt_forbids_merging_two_facts_into_one_claim():
     the sentence implied they were the same engagement. Entity checking sees
     relations between facts as invisible, so the prompt has to carry this."""
     assert "never merge two facts" in cover_letter.SYSTEM.lower()
+
+
+def test_the_prompt_requires_citing_the_fact_that_names_a_thing():
+    """A real quarantine: the letter said "UNSW" and "YSpot" while citing only
+    project bullets, so neither name appeared in any cited fact. Both were the
+    applicant's own -- the failure was the citation, not the claim."""
+    assert "cite the fact whose text contains that name" in cover_letter.SYSTEM
