@@ -1,7 +1,53 @@
-- id: star.deploytime
-  prompt_themes: [initiative, technical-problem-solving]
-  situation: The team's deploy pipeline took 25 minutes, discouraging small releases.
-  task: Reduce the feedback loop without changing the deployment target.
-  action: Profiled the pipeline, parallelised the test stage and cached dependency layers.
-  result: Deploys dropped to 6 minutes; release frequency roughly tripled.
-  source_ids: [exp.acme.b1]
+# STAR answers are cited BY generated documents, so they are source facts
+# themselves -- anything embellished here becomes an embellishment the
+# provenance validator will happily pass. Every claim below is drawn from a
+# cited bullet and nothing is added. Reword them in your own voice; keep the
+# figures as they are.
+
+- id: star.armsoa_integration
+  prompt_themes: [leadership, delivery-under-pressure, technical-problem-solving, stakeholder-management]
+  situation: ArmsOA needed five separate university capstone codebases turned into one production-ready demonstrator of their ANCR decision-support system, on a two-week deadline.
+  task: As Product Owner and client point of contact for a 3-person team, deliver a single integrated platform the client would formally accept.
+  action: Authored and iterated an integration plan across four revisions, consolidating Python/FastAPI and React/TypeScript services while absorbing 43 hours of client-driven scope change as it arrived.
+  result: Achieved full client acceptance within the deadline with a 100% pass rate across 741 automated tests and full API contract validation, delivered 8.5 hours under budget, and was retained on an ongoing casual contract after handover.
+  source_ids: [exp.armsoa.b1, exp.armsoa.b2, exp.armsoa.b3, exp.armsoa.b4]
+
+- id: star.apparel_automation
+  prompt_themes: [initiative, process-improvement, automation, commercial-impact]
+  situation: A live Shopify store at Apparel Group relied on manual inventory data entry, which was slow and error-prone.
+  task: Reduce the manual effort without disrupting a production e-commerce platform.
+  action: Engineered an inventory workflow automation solution for the live store.
+  result: Reduced manual data entry by 90%.
+  source_ids: [exp.apparel.b2]
+
+- id: star.apparel_retention
+  prompt_themes: [user-focus, data-driven-decisions, collaboration]
+  situation: Apparel Group wanted better engagement from its production Shopify storefront.
+  task: Improve user retention on a platform built in HTML, CSS and JavaScript.
+  action: Led UX optimisation of the storefront and conducted user behaviour analysis, translating the findings into recommendations for leadership; separately built and integrated 3D apparel models in Blender across key product pages.
+  result: Increased user retention by 25%, with the 3D product pages contributing a further 10% increase in site user retention.
+  source_ids: [exp.apparel.b1, exp.apparel.b3, exp.apparel.b4]
+
+- id: star.yspot_coordination
+  prompt_themes: [initiative, automation, communication, coordination]
+  situation: YSpot was coordinating 30+ student internship placements with corporate partners using manual administrative processes.
+  task: Cut the administrative overhead while keeping placements on track.
+  action: Programmed Airtable workflow automations to replace manual steps, and delivered UX and product recommendations for the beta application.
+  result: Reduced administrative overhead by 60%, and represented the organisation in a live Dubai Eye 103.8 radio interview communicating product vision and stakeholder value.
+  source_ids: [exp.yspot.b1, exp.yspot.b2]
+
+- id: star.ancr_capstone
+  prompt_themes: [technical-depth, teamwork, systems-thinking, testing]
+  situation: A UNSW capstone team of five had to build an offline-first tool modelling and visualising communications-network resilience in civil-disaster scenarios.
+  task: As Product Owner, own the operator-facing simulation workflows and act as point of contact for the team.
+  action: Built React/TypeScript and Python/FastAPI simulation workflows covering scenario loading, stress-event injection and scenario-time progression, implemented JSON REST endpoints with state history and replay, and added SPLAT-backed RF propagation and coverage visualisation.
+  result: Delivered a final prototype validated through integration, scenario, simulation and validation testing, which ArmsOA subsequently engaged me to turn into a production demonstrator.
+  source_ids: [proj.ancr.b1, proj.ancr.b2, proj.ancr.b3, proj.ancr.b4, proj.ancr.b5]
+
+- id: star.homelab_security
+  prompt_themes: [security, infrastructure, self-directed-learning]
+  situation: Running six self-hosted services at home meant deciding how to reach them remotely without exposing them to the internet.
+  task: Provide remote access to a Linux container and a Kali Linux security workstation without publicly exposed ports.
+  action: Deployed a Proxmox VE host with isolated LXC containers, VMs and Docker, and routed all remote access through a Tailscale WireGuard mesh VPN.
+  result: Eliminated publicly exposed ports entirely, with Uptime Kuma monitoring and Discord webhook alerting covering service availability.
+  source_ids: [proj.homelab.b1, proj.homelab.b2, proj.homelab.b3]

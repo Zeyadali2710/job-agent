@@ -1,15 +1,82 @@
-- id: exp.acme
-  organisation: Acme Pty Ltd
-  title: Software Engineering Intern
+- id: exp.armsoa
+  organisation: ArmsOA
+  title: Product Owner (Casual)
   location: Sydney, NSW
-  start: 2024-11
-  end: 2025-02
+  start: 2026-08
+  end: null
   bullets:
-    - id: exp.acme.b1
-      text: Built an internal service that reduced deploy time from 25 to 6 minutes
-      tags: [python, ci, docker]
-      metrics: {before_minutes: 25, after_minutes: 6}
-    - id: exp.acme.b2
-      text: Wrote integration tests raising coverage on the billing module to 84%
-      tags: [testing, pytest]
-      metrics: {coverage_pct: 84}
+    - id: exp.armsoa.b1
+      text: Directed integration of five codebases into a single production-ready demonstrator of the ANCR system, a tactical application of the company's proprietary CMPAS AI decision-support platform, achieving full client acceptance within a two-week deadline as Product Owner and point of contact for a 3-person team
+      tags: [leadership, integration, product-ownership, ai]
+      metrics: {codebases: 5, team_size: 3, deadline_weeks: 2}
+    - id: exp.armsoa.b2
+      text: Consolidated five Python/FastAPI and React/TypeScript codebases into one platform, achieving a 100% pass rate across 741 automated tests (536 backend, 48 AI-service, 157 frontend) and full API contract validation
+      tags: [python, fastapi, react, typescript, testing, api]
+      metrics: {tests_total: 741, tests_backend: 536, tests_ai: 48, tests_frontend: 157, pass_rate_pct: 100}
+    - id: exp.armsoa.b3
+      text: Delivered all committed scope 8.5 hours under budget while absorbing 43 additional hours of client-driven scope change on schedule, by authoring and iterating the integration plan across four revisions
+      tags: [planning, delivery, stakeholder-management]
+      metrics: {under_budget_hours: 8.5, absorbed_hours: 43, scope_change_pct: 36, plan_revisions: 4}
+    - id: exp.armsoa.b4
+      text: Retained on an ongoing casual contract after successful handover, to support the client's AI decision layer implementation
+      tags: [ai, handover]
+- id: exp.apparel
+  organisation: Apparel Group
+  title: Web Developer
+  location: Dubai, UAE
+  start: 2021-10
+  end: 2023-08
+  bullets:
+    - id: exp.apparel.b1
+      text: Increased user retention by 25% by leading UX optimisation of a production Shopify e-commerce platform built in HTML, CSS and JavaScript
+      tags: [shopify, javascript, html, css, ux, e-commerce]
+      metrics: {retention_increase_pct: 25}
+    - id: exp.apparel.b2
+      text: Reduced manual data entry by 90% by engineering an inventory workflow automation solution for a live Shopify store
+      tags: [automation, workflow, shopify]
+      metrics: {manual_entry_reduction_pct: 90}
+    - id: exp.apparel.b3
+      text: Created and integrated 3D apparel models in Blender across key product pages, contributing to a 10% increase in site user retention
+      tags: [blender, 3d, e-commerce]
+      metrics: {retention_increase_pct: 10}
+    - id: exp.apparel.b4
+      text: Conducted user behaviour analysis, translating insights into actionable recommendations for leadership
+      tags: [analytics, communication]
+- id: exp.yspot
+  organisation: YSpot
+  title: Project Management Intern
+  location: Dubai, UAE
+  start: 2022-06
+  end: 2022-08
+  bullets:
+    - id: exp.yspot.b1
+      text: Reduced administrative overhead by 60% by programming Airtable workflow automations while coordinating 30+ student internship placements with corporate partners
+      tags: [airtable, automation, coordination]
+      metrics: {overhead_reduction_pct: 60, placements: 30}
+    - id: exp.yspot.b2
+      text: Delivered UX and product recommendations for YSpot's beta application and represented the organisation in a live Dubai Eye 103.8 radio interview, communicating product vision and stakeholder value
+      tags: [ux, communication, public-speaking]
+- id: exp.basser
+  organisation: Basser College, UNSW
+  title: Social Director, House Committee
+  location: Sydney, NSW
+  start: 2024-10
+  end: 2025-12
+  bullets:
+    - id: exp.basser.b1
+      text: Led and trained 4 officers to deliver 20+ events for 160+ residents, including cross-college events reaching 300+ attendees
+      tags: [leadership, events, team-management]
+      metrics: {officers_led: 4, events: 20, residents: 160, cross_college_attendees: 300}
+    - id: exp.basser.b2
+      text: Managed event budgets, approvals and strategy documentation with the Dean and college leadership
+      tags: [budgeting, stakeholder-management]
+- id: exp.tommyguns
+  organisation: Tommy Guns Barbershop
+  title: Barber
+  location: Sydney, NSW
+  start: 2025-07
+  end: null
+  bullets:
+    - id: exp.tommyguns.b1
+      text: Built strong client relationships through communication and attention to detail while managing time, bookings and service quality under consistent demand
+      tags: [customer-service, time-management]

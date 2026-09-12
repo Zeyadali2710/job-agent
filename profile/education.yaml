@@ -1,11 +1,28 @@
 - id: edu.unsw
   institution: UNSW Sydney
   qualification: Bachelor of Science (Computer Science)
-  start: 2022-02
-  end: 2025-11
-  wam: 78
+  start: 2023-09
+  end: 2026-08
+  wam: 75
   completed: true
   highlights:
     - id: edu.unsw.h1
-      text: Coursework in distributed systems, security engineering and machine learning
-      tags: [distributed-systems, security, ml]
+      text: Major in Security Engineering, minor in Finance; WAM 75/100, Distinction
+      tags: [security-engineering, finance, distinction]
+      metrics: {wam: 75}
+    - id: edu.unsw.h2
+      text: Coursework in Security Engineering, Web Application Security, Digital Forensics, Information Codes and Ciphers, Networks, and Algorithm Design and Analysis
+      tags: [security, forensics, cryptography, networks, algorithms]
+    - id: edu.unsw.h3
+      text: Coursework in Data Structures and Algorithms, Database Systems, and Object-Oriented Design and Programming
+      tags: [algorithms, databases, oop]
+- id: edu.dia
+  institution: Dubai International Academy, Dubai, UAE
+  qualification: IB Diploma Programme
+  start: 2021-09
+  end: 2023-05
+  completed: true
+  highlights:
+    - id: edu.dia.h1
+      text: Research investigations spanning cryptocurrency stability, encryption using matrices, and applied physics experimentation
+      tags: [research, cryptography, physics]

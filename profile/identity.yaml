@@ -1,14 +1,17 @@
 id: identity.self
-full_name: Zeyad <surname>
+full_name: Zeyad Ali
 preferred_name: Zeyad
-email: you@example.com
-phone_display: "+61 4XX XXX XXX"   # display only; the real number is in sensitive.yaml
+email: zeyadali2710@gmail.com
+phone_display: "+61 427 536 563"
 location_city: Sydney
 location_state: NSW
 links:
   - id: link.github
     label: GitHub
-    url: https://github.com/<you>
+    url: https://github.com/Zeyadali2710
   - id: link.linkedin
     label: LinkedIn
-    url: https://www.linkedin.com/in/<you>
+    url: https://www.linkedin.com/in/zeyadali2710
+  - id: link.portfolio
+    label: Portfolio
+    url: https://zeyadali.framer.ai

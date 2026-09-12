@@ -1,3 +1,137 @@
+- id: proj.ancr
+  name: Autonomous Network Correction and Recovery (ANCR) - UNSW COMP3900 Capstone
+  url: null
+  start: 2026-02
+  end: 2026-08
+  bullets:
+    - id: proj.ancr.b1
+      text: Product Owner and point of contact for a 5-person engineering team building an offline-first Network Analytic Tool modelling, simulating and visualising communications-network resilience in civil-disaster scenarios
+      tags: [product-ownership, leadership, simulation, networks]
+      metrics: {team_size: 5}
+    - id: proj.ancr.b2
+      text: Developed operator-facing simulation workflows with a React/TypeScript frontend and Python/FastAPI backend, covering scenario and PACE-plan loading, stress-event injection, simulation stepping, state refresh and scenario-time progression
+      tags: [react, typescript, python, fastapi, frontend, backend]
+    - id: proj.ancr.b3
+      text: Implemented JSON REST endpoints with generated FastAPI documentation, plus scenario-time metadata, real-time and scenario modes, and state history with replay
+      tags: [rest, api, fastapi, python]
+    - id: proj.ancr.b4
+      text: Built SPLAT-backed RF propagation and coverage visualisation, connecting map-ready backend coverage data to frontend overlays for degraded coverage, propagation gaps and stress-affected conditions
+      tags: [splat, rf-propagation, visualisation, networks]
+    - id: proj.ancr.b5
+      text: Performed integration, scenario, simulation and validation testing for the final prototype
+      tags: [testing, integration-testing]
+
+- id: proj.homelab
+  name: Homelab - Self-Hosted Infrastructure
+  url: null
+  start: 2026-01
+  end: null
+  bullets:
+    - id: proj.homelab.b1
+      text: Deployed a Proxmox VE host running six self-hosted services across isolated LXC containers, VMs and Docker
+      tags: [proxmox, docker, lxc, linux, infrastructure]
+      metrics: {services: 6}
+    - id: proj.homelab.b2
+      text: Routed all remote access, including SSH to a Linux container and RDP to a Kali Linux security workstation, through a Tailscale WireGuard mesh VPN, eliminating publicly exposed ports
+      tags: [tailscale, wireguard, vpn, ssh, kali-linux, network-security]
+    - id: proj.homelab.b3
+      text: Enforced a 20-file, 15-minute retention limit on a self-hosted file-transfer service via a scheduled shell script, and configured Uptime Kuma monitoring with Discord webhook alerting
+      tags: [bash, monitoring, automation]
+      metrics: {retention_files: 20, retention_minutes: 15}
+
+- id: proj.toohak
+  name: Toohak - Real-Time Quiz Platform
+  url: null
+  start: 2024-10
+  end: 2024-12
+  bullets:
+    - id: proj.toohak.b1
+      text: Built a modular Node.js/Express backend handling concurrent quiz sessions, live player tracking and scoreboards, using async state updates to avoid race conditions
+      tags: [nodejs, express, typescript, concurrency]
+    - id: proj.toohak.b2
+      text: Separated admin and player flows with token-based admin authentication and sign-up-free player join, using UUID-based session tracking and strict input validation
+      tags: [authentication, api-design, security]
+    - id: proj.toohak.b3
+      text: Implemented a RESTful API in TypeScript/Express with comprehensive Jest test coverage
+      tags: [typescript, rest, jest, testing]
+
+- id: proj.filetype
+  name: File Type Identifier
+  url: null
+  start: 2024-01
+  end: 2024-12
+  bullets:
+    - id: proj.filetype.b1
+      text: Built a Python file-forensics utility identifying 290+ file formats through magic-byte analysis independent of file extension, with terminal and GUI file selection
+      tags: [python, digital-forensics, cli, security]
+      metrics: {formats_identified: 290}
+
+- id: proj.space
+  name: Space - A File Archiver
+  url: null
+  start: 2024-01
+  end: 2024-02
+  bullets:
+    - id: proj.space.b1
+      text: Built a custom archiver for the galaxy archive format in C, listing, creating, extracting and verifying file system objects using low-level file operations with no external libraries
+      tags: [c, systems-programming, file-formats]
+    - id: proj.space.b2
+      text: Implemented extraction logic preserving original file permissions, hash-based integrity verification, and archive creation with 7-bit and 6-bit encoding support
+      tags: [c, hashing, encoding, integrity]
+
+- id: proj.propertydb
+  name: Property Management Database
+  url: null
+  start: 2023-01
+  end: 2023-04
+  bullets:
+    - id: proj.propertydb.b1
+      text: Designed a relational PostgreSQL schema covering properties, clients, bookings and financial records for holiday-rental property owners, prioritising integrity and scalable queries
+      tags: [postgresql, java, database-design]
+    - id: proj.propertydb.b2
+      text: Automated booking workflows with integrated financial tracking and SMTP email notifications with OTP verification for secure client communication
+      tags: [java, smtp, automation, security]
+
+- id: proj.climb
+  name: Climb - Boulder Wall Navigation
+  url: null
+  start: 2024-01
+  end: 2024-02
+  bullets:
+    - id: proj.climb.b1
+      text: Implemented Dijkstra shortest-path search in C to compute shortest, energy-efficient and low-turn routes across a simulated climbing wall, minimising energy use via colour-coded rock costs with manual dynamic memory management
+      tags: [c, algorithms, dijkstra, memory-management]
+
+- id: proj.setops
+  name: Set Operations Library
+  url: null
+  start: 2024-01
+  end: 2024-02
+  bullets:
+    - id: proj.setops.b1
+      text: Implemented a Set ADT in C using AVL trees with union, intersection, subset and equality checks, achieving O(n+m) union and O(n log m) intersection through height-balancing rotations on insert and delete
+      tags: [c, algorithms, avl-trees, data-structures]
+
+- id: proj.pacman
+  name: Terminal Pacman
+  url: null
+  start: 2023-01
+  end: 2023-02
+  bullets:
+    - id: proj.pacman.b1
+      text: Built a terminal-based multi-level Pacman clone in C with player movement, ghost chase AI, power-ups and scoring, optimising terminal rendering and input handling without graphical libraries
+      tags: [c, game-development, algorithms]
+
+- id: proj.railroad
+  name: Railroad Runners Game
+  url: null
+  start: 2024-01
+  end: 2024-01
+  bullets:
+    - id: proj.railroad.b1
+      text: Translated a C-based obstacle-dodging game into MIPS assembly with a real-time game loop, input handling and collision detection at the instruction level, using manual stack and heap memory management
+      tags: [mips, assembly, systems-programming]
+
 - id: proj.jobagent
   name: Self-hosted job application agent
   url: null
@@ -7,3 +141,20 @@
     - id: proj.jobagent.b1
       text: Designed a Postgres-backed work queue using FOR UPDATE SKIP LOCKED, replacing Celery and Redis
       tags: [postgres, python, architecture]
+    - id: proj.jobagent.b2
+      text: Built a seven-role least-privilege PostgreSQL model in which the AI code path structurally cannot read sensitive profile data, enforced by schema-level grants rather than application logic
+      tags: [postgresql, security, least-privilege, architecture]
+      metrics: {roles: 7}
+    - id: proj.jobagent.b3
+      text: Implemented a transactional outbox with exponential backoff and rate limiting so notification delivery can never block or fail the pipeline
+      tags: [python, architecture, reliability, async]
+
+- id: proj.cor
+  name: Coefficient of Restitution - Physics Research Paper
+  url: null
+  start: 2022-09
+  end: 2023-03
+  bullets:
+    - id: proj.cor.b1
+      text: Investigated how basketball internal air pressure from 2 to 10 psi affects coefficient of restitution through controlled experimentation with Vernier motion sensors, applying statistical and uncertainty analysis to link pressure to elasticity
+      tags: [research, physics, data-analysis, experimental-design]

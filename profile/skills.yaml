@@ -1,10 +1,203 @@
+# Levels: BASIC | WORKING | ADVANCED | EXPERT
+# evidence_ids must point at real fact ids -- the profile validator rejects any
+# that do not exist, which is what keeps a generated CV citable.
+
+# ---- Languages
 - id: skill.python
   name: Python
-  level: ADVANCED        # BASIC | WORKING | ADVANCED | EXPERT
+  level: ADVANCED
   years: 4
-  evidence_ids: [exp.acme.b1, proj.jobagent.b1]
-- id: skill.postgres
-  name: PostgreSQL
+  evidence_ids: [exp.armsoa.b2, proj.ancr.b2, proj.filetype.b1, proj.jobagent.b1]
+- id: skill.c
+  name: C
+  level: ADVANCED
+  years: 3
+  evidence_ids: [proj.space.b1, proj.climb.b1, proj.setops.b1, proj.pacman.b1]
+- id: skill.cpp
+  name: C++
   level: WORKING
   years: 2
-  evidence_ids: [proj.jobagent.b1]
+  evidence_ids: [edu.unsw.h3]
+- id: skill.java
+  name: Java
+  level: WORKING
+  years: 2
+  evidence_ids: [proj.propertydb.b2, edu.unsw.h3]
+- id: skill.typescript
+  name: TypeScript
+  level: ADVANCED
+  years: 2
+  evidence_ids: [exp.armsoa.b2, proj.ancr.b2, proj.toohak.b3]
+- id: skill.javascript
+  name: JavaScript
+  level: ADVANCED
+  years: 4
+  evidence_ids: [exp.apparel.b1, proj.toohak.b1]
+- id: skill.sql
+  name: SQL
+  level: ADVANCED
+  years: 3
+  evidence_ids: [proj.propertydb.b1, proj.jobagent.b2]
+- id: skill.mips
+  name: MIPS Assembly
+  level: BASIC
+  years: 1
+  evidence_ids: [proj.railroad.b1]
+- id: skill.bash
+  name: Bash
+  level: WORKING
+  years: 2
+  evidence_ids: [proj.homelab.b3]
+- id: skill.html_css
+  name: HTML/CSS
+  level: ADVANCED
+  years: 4
+  evidence_ids: [exp.apparel.b1]
+
+# ---- Frameworks and development
+- id: skill.react
+  name: React
+  level: ADVANCED
+  years: 2
+  evidence_ids: [exp.armsoa.b2, proj.ancr.b2]
+- id: skill.fastapi
+  name: FastAPI
+  level: ADVANCED
+  years: 2
+  evidence_ids: [exp.armsoa.b2, proj.ancr.b3]
+- id: skill.nodejs
+  name: Node.js
+  level: WORKING
+  years: 2
+  evidence_ids: [proj.toohak.b1]
+- id: skill.express
+  name: Express
+  level: WORKING
+  years: 2
+  evidence_ids: [proj.toohak.b1, proj.toohak.b3]
+- id: skill.postgresql
+  name: PostgreSQL
+  level: ADVANCED
+  years: 3
+  evidence_ids: [proj.propertydb.b1, proj.jobagent.b1, proj.jobagent.b2]
+- id: skill.rest
+  name: REST APIs
+  level: ADVANCED
+  years: 2
+  evidence_ids: [proj.ancr.b3, proj.toohak.b3]
+- id: skill.git
+  name: Git
+  level: ADVANCED
+  years: 4
+  evidence_ids: [exp.armsoa.b1]
+- id: skill.shopify
+  name: Shopify
+  level: WORKING
+  years: 2
+  evidence_ids: [exp.apparel.b1, exp.apparel.b2]
+- id: skill.airtable
+  name: Airtable
+  level: WORKING
+  years: 1
+  evidence_ids: [exp.yspot.b1]
+
+# ---- Security
+- id: skill.security_engineering
+  name: Security Engineering
+  level: WORKING
+  years: 3
+  evidence_ids: [edu.unsw.h1, edu.unsw.h2]
+- id: skill.web_app_security
+  name: Web Application Security
+  level: WORKING
+  years: 2
+  evidence_ids: [edu.unsw.h2]
+- id: skill.network_security
+  name: Network Security
+  level: WORKING
+  years: 2
+  evidence_ids: [edu.unsw.h2, proj.homelab.b2]
+- id: skill.digital_forensics
+  name: Digital Forensics
+  level: WORKING
+  years: 2
+  evidence_ids: [edu.unsw.h2, proj.filetype.b1]
+- id: skill.cryptography
+  name: Cryptography
+  level: WORKING
+  years: 2
+  evidence_ids: [edu.unsw.h2]
+- id: skill.burp_suite
+  name: Burp Suite
+  level: BASIC
+  years: 1
+  evidence_ids: [edu.unsw.h2]
+- id: skill.kali_linux
+  name: Kali Linux
+  level: BASIC
+  years: 1
+  evidence_ids: [proj.homelab.b2]
+
+# ---- Infrastructure and DevOps
+- id: skill.linux
+  name: Linux
+  level: WORKING
+  years: 3
+  evidence_ids: [proj.homelab.b1, proj.homelab.b2]
+- id: skill.docker
+  name: Docker
+  level: WORKING
+  years: 2
+  evidence_ids: [proj.homelab.b1, proj.jobagent.b2]
+- id: skill.proxmox
+  name: Proxmox VE
+  level: WORKING
+  years: 1
+  evidence_ids: [proj.homelab.b1]
+- id: skill.tailscale
+  name: Tailscale
+  level: WORKING
+  years: 1
+  evidence_ids: [proj.homelab.b2]
+- id: skill.ssh
+  name: SSH
+  level: WORKING
+  years: 3
+  evidence_ids: [proj.homelab.b2]
+- id: skill.monitoring
+  name: Monitoring and Alerting
+  level: WORKING
+  years: 1
+  evidence_ids: [proj.homelab.b3]
+
+# ---- Testing and practice
+- id: skill.jest
+  name: Jest
+  level: WORKING
+  years: 2
+  evidence_ids: [proj.toohak.b3]
+- id: skill.automated_testing
+  name: Automated Testing
+  level: ADVANCED
+  years: 2
+  evidence_ids: [exp.armsoa.b2, proj.ancr.b5, proj.toohak.b3]
+- id: skill.integration_testing
+  name: Integration Testing
+  level: WORKING
+  years: 2
+  evidence_ids: [exp.armsoa.b2, proj.ancr.b5]
+- id: skill.agile
+  name: Agile/Scrum
+  level: WORKING
+  years: 2
+  evidence_ids: [exp.armsoa.b1, exp.armsoa.b3]
+- id: skill.workflow_automation
+  name: Workflow Automation
+  level: ADVANCED
+  years: 3
+  evidence_ids: [exp.apparel.b2, exp.yspot.b1]
+- id: skill.algorithms
+  name: Data Structures and Algorithms
+  level: ADVANCED
+  years: 3
+  evidence_ids: [proj.setops.b1, proj.climb.b1, edu.unsw.h3]
