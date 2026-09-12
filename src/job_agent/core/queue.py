@@ -13,7 +13,10 @@ CLAIM = text("""
 WITH claimed AS (
   SELECT id FROM app.work_items
    WHERE state = 'PENDING' AND run_after <= now()
-     AND (:kinds IS NULL OR kind = ANY(CAST(:kinds AS text[])))
+     -- Cast on BOTH uses. `:kinds IS NULL` on its own gives Postgres nothing
+     -- to infer a type from and asyncpg raises AmbiguousParameterError before
+     -- the query ever runs; the cast on the second use does not reach the first.
+     AND (CAST(:kinds AS text[]) IS NULL OR kind = ANY(CAST(:kinds AS text[])))
    ORDER BY priority, run_after
    FOR UPDATE SKIP LOCKED
    LIMIT :n
