@@ -128,9 +128,23 @@ Phase 1 created `/opt/job-agent/secrets` at mode 700. Populate it:
 openssl rand -base64 32 | tr -d '\n' > /opt/job-agent/secrets/postgres_password
 printf 'PLACEHOLDER_SET_IN_PHASE_10' > /opt/job-agent/secrets/discord_webhook
 printf 'PLACEHOLDER_SET_IN_PHASE_11' > /opt/job-agent/secrets/anthropic_api_key
-chmod 600 /opt/job-agent/secrets/*
+chgrp 10001 /opt/job-agent/secrets/*
+chmod 640 /opt/job-agent/secrets/*
 ls -l /opt/job-agent/secrets/
 ```
+
+**640 with group 10001, not 600.** Compose's file-based secrets are a bind
+mount, not a copy: the container sees the host's owner, group and mode
+unchanged. Every service runs as UID/GID 10001, so a 600 file is unreadable
+inside the container and the process dies with
+
+```
+PermissionError: [Errno 13] Permission denied: '/run/secrets/<name>'
+```
+
+The directory itself stays 700, so only root can enumerate it. Anything in here
+that a container does *not* read -- `backup-age.key`, for instance -- must stay
+`600 root:root`; do not sweep it into the `chgrp`.
 
 These are mounted into containers as **files** at `/run/secrets/<name>`, not as
 environment variables. The distinction matters: env vars are visible in
@@ -916,7 +930,8 @@ alerting path.
 
 - [ ] Repo skeleton created, `git log` shows an initial commit
 - [ ] Pre-commit hook **tested** and blocks a fake webhook URL
-- [ ] `/opt/job-agent/secrets/` holds three files at mode 600
+- [ ] `/opt/job-agent/secrets/` holds three files at mode 640, group 10001
+- [ ] `sudo -u '#10001' cat /opt/job-agent/secrets/postgres_password` succeeds
 - [ ] `.env` at mode 600, `DRY_RUN=true`, and **not** tracked by git (`git check-ignore .env`)
 - [ ] `make up` brings all three services to healthy
 - [ ] **T1 passes** — `--memory=64m` test exits 137, `docker info` shows no limit warnings
