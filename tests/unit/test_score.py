@@ -26,8 +26,10 @@ PERFECT = {
     "posted_at": NOW,
     "is_grad_program": True,
     "work_rights_class": "COMPATIBLE",
-    "job_skills": ["python", "sql"],
-    "profile_skills": ["python", "sql", "go"],
+    # Four, not two: the denominator floor means a two-skill ad can no longer
+    # be a perfect skill match, and this fixture is meant to be one.
+    "job_skills": ["python", "sql", "linux", "docker"],
+    "profile_skills": ["python", "sql", "linux", "docker", "go"],
 }
 
 
@@ -131,6 +133,27 @@ def test_skill_overlap_caps_the_denominator():
     many = [f"skill{i}" for i in range(20)]
     _, _, features = s(job_skills=many, profile_skills=many[:8])
     assert feat(features, "skill_overlap")["value"] == 1.0
+
+
+def test_skill_overlap_floors_the_denominator():
+    """Production: "Talent Engineer" matched 1 of 1 extracted skills and scored
+    a perfect 1.00, outranking a security role that matched 5 of 19. An ad
+    naming one technology has not described a stack."""
+    _, _, features = s(job_skills=["python"], profile_skills=["python", "sql"])
+    assert feat(features, "skill_overlap")["value"] == 0.25
+    # the real match it was beating
+    nineteen = [f"skill{i}" for i in range(19)]
+    _, _, deep = s(job_skills=nineteen, profile_skills=nineteen[:5])
+    assert feat(deep, "skill_overlap")["value"] >         feat(features, "skill_overlap")["value"]
+
+
+def test_empty_extraction_is_not_neutral():
+    """An analysis that ran and named no technologies is information -- the ad
+    is not a technology role. Only a missing analysis is neutral."""
+    _, _, ran = s(job_skills=[], analysed=True)
+    assert feat(ran, "skill_overlap")["value"] == 0.0
+    _, _, absent = s(job_skills=[])
+    assert feat(absent, "skill_overlap")["value"] == UNKNOWN
 
 
 # ------------------------------------------------------- llm adjustment bound

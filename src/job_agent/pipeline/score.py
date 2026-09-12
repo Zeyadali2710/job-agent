@@ -94,10 +94,19 @@ def _skills(job: Mapping, prefs: Mapping) -> tuple[float, str]:
     job_skills = {s.lower() for s in (job.get("job_skills") or [])}
     mine = {s.lower() for s in (job.get("profile_skills") or [])}
     if not job_skills:
+        # An analysis that ran and named nothing is not the same as no analysis.
+        # Both used to return the neutral 0.5, which put an Inventory Clerk ad
+        # above a security role that genuinely matched 4 of 20.
+        if job.get("analysed"):
+            return 0.0, "enrichment named no technologies for this role"
         return UNKNOWN, "requirements not yet extracted"
     hit = job_skills & mine
     # Capped at 8: a job listing 20 skills should not need all 20 matched.
-    value = _clamp(len(hit) / min(len(job_skills), 8))
+    # ponytail: floored at 4. An ad naming fewer than four technologies has not
+    # described a stack, so matching one of them is not evidence of fit -- an
+    # ad listing a single skill scored a perfect 1.00 and outranked a security
+    # role matching 5 of 19. Raise the floor if sparse ads still rank high.
+    value = _clamp(len(hit) / min(max(len(job_skills), 4), 8))
     shown = ", ".join(sorted(hit)[:5]) or "none"
     return value, f"{len(hit)} of {len(job_skills)} required skills matched: {shown}"
 
@@ -358,6 +367,9 @@ async def score_pending(limit: int = 200) -> dict:
                 "is_grad_program": row["is_grad_program"],
                 "work_rights_class": row["work_rights_class"],
                 "job_skills": _skill_names(_as_list(row["job_skills"])),
+                # NULL only when no analysis row exists at all; an enriched ad
+                # with nothing to name arrives as [], which is information.
+                "analysed": row["job_skills"] is not None,
                 "profile_skills": profile_skills,
             }
             base, band, features = score(job, prefs, weights)
