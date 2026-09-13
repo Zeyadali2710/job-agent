@@ -324,6 +324,10 @@ services:
     secrets: [ja_applier_password]
     volumes:
       - artifacts:/app/artifacts
+      # Same read-only mount the worker has. The browser layer's end-to-end
+      # test drives the captured ATS fixtures from tests/, served locally, so
+      # a real Chromium exercises a real form without touching an employer.
+      - ./tests:/app/tests:ro
     depends_on:
       postgres: {condition: service_healthy}
     command: ["python", "-m", "job_agent.workers.applier"]
