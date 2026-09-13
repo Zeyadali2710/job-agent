@@ -100,3 +100,12 @@ def test_the_selectors_target_challenge_frames_not_badges():
 ])
 def test_automation_policy_is_enforced_not_merely_recorded(policy, allowed):
     assert may_automate(policy) is allowed
+
+
+def test_a_refusal_with_no_canned_explanation_still_says_why():
+    """"INCOMPLETE_FORM: refused" tells you nothing. This string is what
+    reaches the Discord alert, so an unknown kind falls back to its evidence
+    rather than to the word "refused"."""
+    from job_agent.automation.refusals import Refusal
+    r = Refusal("INCOMPLETE_FORM", "1 required and unanswered: mystery")
+    assert "mystery" in r.reason and "refused" not in r.reason

@@ -104,7 +104,15 @@ class Refusal:
 
     @property
     def reason(self) -> str:
-        return f"{self.kind}: {EXPLANATIONS.get(self.kind, 'refused')}"
+        """The canned explanation for a known control, and the evidence itself
+        for anything else.
+
+        Falling back to the word "refused" threw away the only useful part:
+        "INCOMPLETE_FORM: refused" tells you nothing, while
+        "INCOMPLETE_FORM: 3 fields filled, 1 required and unanswered: mystery"
+        is the whole message. This string is what reaches the Discord alert.
+        """
+        return f"{self.kind}: {EXPLANATIONS.get(self.kind) or self.evidence}"
 
     def __str__(self) -> str:
         return self.reason
