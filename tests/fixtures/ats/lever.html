@@ -1,39 +1,39 @@
 <!-- Captured https://jobs.lever.co/lyrebirdhealth/94ea4491-d911-466f-92c5-195bd6ecf6cc/apply
-     form id=application-form enctype=multipart/form-data, fields addressed by name, custom questions as cards[uuid][fieldN], invisible hCaptcha
-     Trimmed to the form elements and captcha context; the full page
-     was 725288 bytes and is not worth committing. -->
+     fields addressed by name with data-qa hooks; custom questions as cards[uuid][fieldN]; invisible hCaptcha whose onSuccess clicks submit
+     Field tags re-serialised from the parsed page, so the fixture is
+     well-formed; the full page was 725288 bytes. -->
 <form id="application-form" enctype="multipart/form-data" method="POST">
-<input class="application-file-input invisible-resume-upload" data-qa="input-resume" id="resume-upload-input" name="resume" tabindex="-1" type="file">
-<input type="text" data-qa="name-input" name="name" required>
-<input name="email" data-qa="email-input" type="email" pattern="[a-zA-Z0-9.#$%&amp;'*+\/=?^_`{|}~][a-zA-Z0-9.!#$%&amp;'*+\/=?^_`{|}~-]*@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*" required>
-<input type="text" data-qa="phone-input" name="phone" required>
-<input class="location-input" data-qa="location-input" id="location-input" type="text" maxlength="100" name="location" required>
-<input id="selected-location" type="hidden" name="selectedLocation">
-<input type="text" data-qa="org-input" name="org">
-<input type="text" name="urls[LinkedIn]">
-<input type="text" name="urls[Twitter]">
-<input type="text" name="urls[GitHub]">
-<input type="text" name="urls[Portfolio]">
-<input type="text" name="urls[Other]">
-<input type="hidden" value="{&quot;createdAt&quot;:1761743387176,&quot;updatedAt&quot;:1773635369044,&quot;text&quot;:&quot;Location&quot;,&quot;instructions&quot;:&quot;&quot;,&quot;type&quot;:&quot;posting&quot;,&quot;accountId&quot;:&quot;99fa5fe1-6924-49ca-a978-bc1f7a504c57&quot;,&quot;fields&qu
-<textarea class="card-field-input" name="cards[e44af941-4972-4f8a-a880-d99aac55370b][field0]">
-<input type="hidden" value="{&quot;createdAt&quot;:1761743903436,&quot;updatedAt&quot;:1761743923605,&quot;text&quot;:&quot;Notice period&quot;,&quot;instructions&quot;:&quot;&quot;,&quot;type&quot;:&quot;posting&quot;,&quot;accountId&quot;:&quot;99fa5fe1-6924-49ca-a978-bc1f7a504c57&quot;,&quot;fiel
-<textarea class="card-field-input" name="cards[197f7934-1365-4d50-a196-99f53652c329][field0]">
-<input type="hidden" value="{&quot;createdAt&quot;:1761743799332,&quot;updatedAt&quot;:1761743879215,&quot;text&quot;:&quot;Salary expectation&quot;,&quot;instructions&quot;:&quot;&quot;,&quot;type&quot;:&quot;posting&quot;,&quot;accountId&quot;:&quot;99fa5fe1-6924-49ca-a978-bc1f7a504c57&quot;,&quot
-<textarea class="card-field-input" name="cards[dcfbb2d8-91f1-4e62-a935-b60899b393af][field0]">
-<input type="hidden" name="accountId" value="99fa5fe1-6924-49ca-a978-bc1f7a504c57">
-<input type="hidden" name="linkedInData">
-<input type="hidden" name="origin">
-<input type="hidden" name="referer">
-<input type="hidden" name="timezone" id="applicant-timezone" value="">
-<input type="hidden" name="socialReferralKey">
-<input type="hidden" name="socialSource">
-<input type="hidden" name="resumeStorageId" value="">
-<input id="hcaptchaResponseInput" type="hidden" name="h-captcha-response" value="">
-<input type="hidden" name="source">
+  <input data-qa="input-resume" id="resume-upload-input" name="resume" tabindex="-1" type="file"/>
+  <input type="text" data-qa="name-input" name="name" required/>
+  <input name="email" data-qa="email-input" type="email" required/>
+  <input type="text" data-qa="phone-input" name="phone" required/>
+  <input data-qa="location-input" id="location-input" type="text" name="location" required/>
+  <input id="selected-location" type="hidden" name="selectedLocation"/>
+  <input type="text" data-qa="org-input" name="org"/>
+  <input type="text" name="urls[LinkedIn]"/>
+  <input type="text" name="urls[Twitter]"/>
+  <input type="text" name="urls[GitHub]"/>
+  <input type="text" name="urls[Portfolio]"/>
+  <input type="text" name="urls[Other]"/>
+  <input type="hidden" value="{"createdAt":1761743387176,"updatedAt":1773635369044,"text":"Location","instructions":"","type":"posting","accountId":"9" name="cards[e44af941-4972-4f8a-a880-d99aac55370b][baseTemplate]"/>
+  <input type="hidden" value="{"createdAt":1761743903436,"updatedAt":1761743923605,"text":"Notice period","instructions":"","type":"posting","accountI" name="cards[197f7934-1365-4d50-a196-99f53652c329][baseTemplate]"/>
+  <input type="hidden" value="{"createdAt":1761743799332,"updatedAt":1761743879215,"text":"Salary expectation","instructions":"","type":"posting","acc" name="cards[dcfbb2d8-91f1-4e62-a935-b60899b393af][baseTemplate]"/>
+  <input type="hidden" name="accountId" value="99fa5fe1-6924-49ca-a978-bc1f7a504c57"/>
+  <input type="hidden" name="linkedInData"/>
+  <input type="hidden" name="origin"/>
+  <input type="hidden" name="referer"/>
+  <input type="hidden" name="timezone" id="applicant-timezone" value/>
+  <input type="hidden" name="socialReferralKey"/>
+  <input type="hidden" name="socialSource"/>
+  <input type="hidden" name="resumeStorageId" value/>
+  <input id="hcaptchaResponseInput" type="hidden" name="h-captcha-response" value/>
+  <input type="hidden" name="source"/>
+  <textarea name="cards[e44af941-4972-4f8a-a880-d99aac55370b][field0]"/>
+  <textarea name="cards[197f7934-1365-4d50-a196-99f53652c329][field0]"/>
+  <textarea name="cards[dcfbb2d8-91f1-4e62-a935-b60899b393af][field0]"/>
+</form>
 <!-- captcha context: : #3c6ea6;}.page-full-width {width: 100%;}.page-centered,.g-recaptcha div,.h-captcha-spacing {display: block;margin: 0 auto;max-w -->
 <!-- captcha context: x 0;}</style><script type="text/javascript" src="https://js.hcaptcha.com/1/secure-api.js?host=jobs.lever.co&amp;onload=onLoad" a -->
 <!-- captcha context: /javascript">let captchaId;let executedFromSubmitButton;let hcaptchaTokenExpired;const clickSubmitButton = function() {const for -->
 <!-- captcha context: -field*/formSubmitButton.click();};var onSuccess = function(hcaptchaResponse) {hcaptchaTokenExpired = false;const hcaptchaRespon -->
 <!-- captcha context: ById('hcaptchaResponseInput');hcaptchaResponseInput.value = hcaptchaResponse;if(executedFromSubmitButton){clickSubmitButton();}} -->
-<!-- captcha context: aTokenExpired = true;};var onLoad = function() {captchaId = hcaptcha.render('h-captcha', {"sitekey": "e33f87f8-88ec-4e1a-9a13-df -->
