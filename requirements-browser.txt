@@ -1,0 +1,4 @@
+# Browser-only dependencies. Deliberately NOT in requirements.txt: that file
+# builds the api, worker, scheduler, notifier and renderer images too, and
+# none of them should carry Chromium.
+playwright==1.62.0

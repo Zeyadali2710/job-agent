@@ -296,10 +296,16 @@ services:
   # DRY_RUN trigger guards. No API key, and no profile read beyond the
   # documents that were already generated for it.
   applier:
-    build: .
+    # The only service built from Dockerfile.browser -- see that file for why.
+    build:
+      context: .
+      dockerfile: Dockerfile.browser
     restart: unless-stopped
-    mem_limit: 384m
-    memswap_limit: 384m
+    # A browser is the memory-hungry part of this system. 3072m is the budget
+    # architecture 14 reserved for it; mem_limit caps rather than reserves, so
+    # this costs nothing while the applier is idle.
+    mem_limit: 3072m
+    memswap_limit: 3072m
     cpus: 1.0
     pids_limit: 128
     init: true
@@ -322,14 +328,16 @@ services:
       postgres: {condition: service_healthy}
     command: ["python", "-m", "job_agent.workers.applier"]
     logging: *default-logging
-    # internal only until Phase 15 gives it a browser that must reach an
-    # employer. Nothing in Phase 14 leaves the machine.
-    networks: [internal]
+    # edge, as of Phase 15: a browser that cannot load an employer's form
+    # cannot fill one. The applier holds no API key and no read of the
+    # sensitive schema, so egress here does not widen what could leak -- the
+    # renderer, which does read contact details, stays on internal alone.
+    networks: [internal, edge]
 
   # ---- defined in later phases; budget shown so the total stays visible ----
-  # Declared total 4672 MiB of the 8192 MiB ceiling; 4160 MiB always-on
+  # Declared total 7360 MiB of the 8192 MiB ceiling; 6848 MiB always-on.
+  # mem_limit is a cap, not a reservation: idle usage is ~800 MiB.
   # (migrator and profile-loader are "tools" profiles, not long-running).
-  # browser:    mem_limit: 3072m  cpus: 2.0   (Phase 15)
 
 volumes:
   pgdata:

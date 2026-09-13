@@ -1,0 +1,36 @@
+# The applier's image, and the only one with a browser in it.
+#
+# Separate from the shared Dockerfile because every other service builds from
+# that one: putting Playwright there would add Chromium and ~150MB of browser
+# to the api, the worker, the scheduler, the notifier and the renderer, none of
+# which has any use for it.
+FROM python:3.13-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    # Out of /root, which uid 10001 cannot read. The container runs unprivileged
+    # with cap_drop ALL, so a browser it cannot execute is a browser it does not
+    # have.
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
+RUN groupadd -r app --gid 10001 && useradd -r -g app --uid 10001 app
+
+WORKDIR /app
+COPY requirements.txt requirements-browser.txt ./
+RUN pip install -r requirements.txt -r requirements-browser.txt
+
+# --with-deps pulls the shared libraries Chromium needs. Chromium only: the
+# adapters drive ATS forms, and firefox and webkit are another 300MB of image
+# for nothing.
+RUN playwright install --with-deps chromium \
+    && chmod -R a+rX /ms-playwright
+
+RUN mkdir -p /app/artifacts && chown app:app /app/artifacts
+
+COPY src/ /app/src/
+COPY pytest.ini /app/pytest.ini
+ENV PYTHONPATH=/app/src
+
+USER app
+CMD ["python", "-m", "job_agent.workers.applier"]
