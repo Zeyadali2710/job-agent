@@ -6,6 +6,7 @@ Four forms, because four things can happen and each must be exercised:
     /form/captcha   a form behind a CAPTCHA -- must be refused, not solved
     /form/mfa       a form asking for a second factor -- must be refused
     /form/limited   returns HTTP 429 -- must be refused
+    /fixture/<name> the real captured ATS markup from tests/fixtures/ats
 
 stdlib http.server rather than Flask: this serves four static pages and one
 POST, and adding a dependency to the image for that would be silly.
@@ -18,7 +19,10 @@ import json
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from urllib.parse import parse_qs, urlparse
+
+FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "ats"
 
 SUBMISSIONS: list[dict] = []
 
@@ -79,6 +83,16 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path == "/form/limited":
             return self._send(429, LIMITED_BODY)
+        if path.startswith("/fixture/"):
+            # The real captured ATS markup, served locally. Lets a real browser
+            # drive a real form end to end without a single request reaching an
+            # employer -- which is the only way to exercise the whole path
+            # repeatedly without being a nuisance to somebody's careers site.
+            name = path.rsplit("/", 1)[-1]
+            f = FIXTURES / f"{name}.html"
+            if not f.is_file() or ".." in name or "/" in name:
+                return self._send(404, "<h1>no such fixture</h1>")
+            return self._send(200, f.read_text(encoding="utf-8"))
         if path in PAGES:
             return self._send(200, PAGES[path])
         if path == "/submissions":
