@@ -31,8 +31,24 @@ from job_agent.application.adapters.base import (
 )
 from job_agent.application.adapters.mock import MockAdapter
 from job_agent.application.route import transition
+from job_agent.ai.client import decode_jsonb
 from job_agent.core.config import get_settings
 from job_agent.core.db import tx
+
+
+def _build_adapter(choice: str):
+    """mock unless told otherwise.
+
+    A browser loading an employer's careers page is a visible act -- it shows
+    up in their analytics with our user agent on it -- so it happens because
+    someone set automation.adapter to "browser", never because a default
+    drifted.
+    """
+    if choice == "browser":
+        from job_agent.application.adapters.browser import BrowserAdapter
+        from job_agent.automation.playwright_driver import PlaywrightDriver
+        return BrowserAdapter(lambda: PlaywrightDriver().__enter__())
+    return MockAdapter()
 
 
 class DryRunViolation(RuntimeError):
@@ -52,15 +68,29 @@ def assert_submission_allowed(dry_run: bool, application_id: int) -> None:
 
 APPROVED_APPLICATIONS = text("""
 SELECT a.id AS app_id, a.status, a.mode, a.job_group_id,
-       g.title, c.name AS company, p.canonical_url
+       g.title, c.name AS company, p.canonical_url, p.ats_platform,
+       coalesce(s.automation_policy, 'MANUAL_ONLY') AS automation_policy
   FROM app.applications a
   JOIN app.job_groups g ON g.id = a.job_group_id
   LEFT JOIN app.postings p ON p.id = g.canonical_posting_id
   LEFT JOIN app.companies c ON c.id = g.company_id
+  LEFT JOIN app.sources s ON s.id = p.source_id
  WHERE a.status = 'APPROVED'
  ORDER BY a.id
  LIMIT :n
 """)
+
+# The identity a form asks for. Not from schema sensitive -- the applier has
+# no grant there and never will; this is the same non-sensitive identity fact
+# the resume header is built from.
+IDENTITY = text("""
+SELECT f.data FROM app.profile_facts f
+  JOIN app.profile_versions v ON v.id = f.profile_version_id
+ WHERE v.is_active AND f.kind = 'identity'
+ LIMIT 1
+""")
+
+SETTING = text("SELECT value FROM app.settings WHERE key = :k")
 
 DOCUMENTS = text("""
 SELECT kind, path, sha256 FROM app.generated_documents
@@ -187,11 +217,19 @@ async def submit_pending(limit: int = 5, adapter=None) -> dict:
     """
     settings = get_settings()
     dry_run = bool(settings.dry_run)
-    adapter = adapter or MockAdapter()
-    counts = {"attempted": 0, "submitted": 0, "rehearsed": 0, "failed": 0}
+    counts = {"attempted": 0, "submitted": 0, "rehearsed": 0, "failed": 0,
+              "refused": 0, "adapter": None}
 
     async with tx() as conn:
         rows = (await conn.execute(APPROVED_APPLICATIONS, {"n": limit})).mappings().all()
+        identity = decode_jsonb(
+            (await conn.execute(IDENTITY)).scalar()) or {}
+        choice = str(decode_jsonb(
+            (await conn.execute(SETTING, {"k": "automation.adapter"})).scalar())
+            or "mock").lower()
+
+    adapter = adapter or _build_adapter(choice)
+    counts["adapter"] = adapter.name
 
     for row in rows:
         app_id = row["app_id"]
@@ -213,7 +251,10 @@ async def submit_pending(limit: int = 5, adapter=None) -> dict:
         ctx = SubmitContext(
             application_id=app_id, job_title=row["title"] or "",
             company=row["company"] or "", job_url=row["canonical_url"] or "",
-            documents=docs, answers=answers, dry_run=dry_run)
+            documents=docs, answers=answers, dry_run=dry_run,
+            platform=row["ats_platform"] or "",
+            automation_policy=row["automation_policy"] or "MANUAL_ONLY",
+            identity=identity)
 
         try:
             async with tx() as conn:
@@ -225,12 +266,20 @@ async def submit_pending(limit: int = 5, adapter=None) -> dict:
                 await _set_state(conn, attempt_id, A.REVIEW_PENDING,
                                  form_hash=prepared.form_hash)
         except Exception as exc:
+            # A refusal is a decision, not a fault: the page asked for
+            # something we will not do. It is recorded as ABANDONED with the
+            # reason, and the application stays APPROVED so a person can
+            # finish it by hand.
+            refused = type(exc).__name__ == "Refused"
             async with tx() as conn:
-                await _set_state(conn, attempt_id, A.FAILED,
-                                 error=f"{type(exc).__name__}: {exc}")
+                await _set_state(conn, attempt_id,
+                                 A.ABANDONED if refused else A.FAILED,
+                                 error=f"{type(exc).__name__}: {exc}"[:2000])
                 await transition(conn, app_id, "SUBMITTING", "APPROVED",
-                                 actor="applier", reason="preparation failed")
-            counts["failed"] += 1
+                                 actor="applier",
+                                 reason=("refused: " if refused else
+                                         "preparation failed: ") + str(exc)[:300])
+            counts["refused" if refused else "failed"] += 1
             continue
 
         # Architecture 10: the SUBMIT_INTENT row is committed BEFORE the click,

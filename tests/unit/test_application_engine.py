@@ -157,3 +157,46 @@ def test_no_other_worker_can_claim_a_submit():
     submit item they claimed would fail all eight attempts."""
     from job_agent.workers import loop, renderer
     assert "submit" not in loop.HANDLERS and "submit" not in renderer.HANDLERS
+
+
+# ------------------------------------------------------- adapter selection
+
+def test_the_mock_adapter_is_the_default():
+    """A browser loading an employer's careers page is a visible act -- it
+    appears in their analytics with our user agent on it. That happens because
+    someone chose it, never because a default drifted."""
+    from job_agent.application.engine import _build_adapter
+    assert _build_adapter("mock").name == "mock"
+    assert _build_adapter("").name == "mock"
+    assert _build_adapter("nonsense").name == "mock"
+
+
+def test_the_browser_adapter_is_reachable_but_only_when_asked_for():
+    from job_agent.application.engine import _build_adapter
+    assert _build_adapter("browser").name == "browser"
+
+
+def test_the_submit_context_defaults_to_the_most_restrictive_policy():
+    """A source that never said BROWSER_ALLOWED must not be automated because
+    a column was null."""
+    from job_agent.application.adapters.base import SubmitContext
+    c = SubmitContext(1, "T", "C", "u", [], {}, True)
+    assert c.automation_policy == "MANUAL_ONLY"
+
+
+def test_the_engine_reads_the_policy_from_the_source_and_defaults_it_in_sql():
+    """coalesce in the query, not just in Python: a posting with no source row
+    would otherwise arrive with a null policy and be read as permissive."""
+    from job_agent.application.engine import APPROVED_APPLICATIONS
+    sql = str(APPROVED_APPLICATIONS)
+    assert "coalesce(s.automation_policy, 'MANUAL_ONLY')" in sql
+
+
+def test_the_applier_reads_identity_but_never_the_sensitive_schema():
+    """It can type your name into a form and still cannot read your address,
+    TFN or visa number. That separation is the whole point of the renderer."""
+    body = (__import__("pathlib").Path(__file__).resolve().parents[2]
+            / "src" / "job_agent" / "application" / "engine.py"
+            ).read_text(encoding="utf-8")
+    assert "profile_facts" in body
+    assert "sensitive." not in body

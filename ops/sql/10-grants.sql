@@ -64,6 +64,11 @@ GRANT SELECT, INSERT, UPDATE ON app.application_attempts, app.attempt_artifacts 
 GRANT UPDATE ON app.applications TO ja_applier;
 GRANT INSERT ON app.application_status_history, app.events, app.notifications TO ja_applier;
 GRANT SELECT, UPDATE, INSERT ON app.work_items, app.heartbeats TO ja_applier;
+-- Phase 15: the identity a form asks for, and the policy that says whether
+-- the form may be driven at all. Schema sensitive stays the renderer's
+-- alone -- the applier can type your name and still cannot read your
+-- address, TFN or visa number.
+GRANT SELECT ON app.profile_facts, app.profile_versions, app.sources TO ja_applier;
 
 -- ---------------------------------------------------------------- hard denials
 -- Belt and braces over the append-only triggers, and over anything ALL TABLES gave away.
