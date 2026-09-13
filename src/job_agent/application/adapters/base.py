@@ -35,6 +35,13 @@ class SubmitContext:
     documents: Sequence[Document]
     answers: Mapping[str, str]
     dry_run: bool
+    # Which ATS this is, and whether its source may be driven at all.
+    # automation_policy defaults to the most restrictive value: a source that
+    # never said BROWSER_ALLOWED must not be automated because a field was
+    # left unset.
+    platform: str = ""
+    automation_policy: str = "MANUAL_ONLY"
+    identity: Mapping[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

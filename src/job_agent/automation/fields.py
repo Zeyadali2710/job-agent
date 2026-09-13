@@ -33,6 +33,8 @@ class Field:
     hidden: bool = False
     honeypot: bool = False
     accept: str = ""
+    label: str = ""          # text of <label for=...>, which is often the only
+                             # thing that says what a uuid-named field is asking
 
     @property
     def selector(self) -> str:
@@ -52,10 +54,37 @@ class Field:
         """What an adapter matches on."""
         return self.name or self.id
 
+    @property
+    def prompt(self) -> str:
+        """The human-readable question, best source first. Ashby names every
+        custom field with a uuid, so the <label for=...> is the only thing
+        that says what is being asked."""
+        return (self.label or self.aria_label or "").strip()
+
+    @property
+    def is_choice(self) -> bool:
+        return self.type in ("radio", "checkbox") or self.tag == "select"
+
 
 def _attr(node, key: str) -> str:
     v = node.attributes.get(key)
     return "" if v is None else str(v)
+
+
+# The token field a captcha writes its result into. Present on real forms as
+# an ordinary textarea or hidden input, which means an adapter looking for
+# "somewhere to put an answer" will happily find it:
+#     Ashby   <textarea name="g-recaptcha-response">
+#     Lever   <input name="h-captcha-response">
+# Writing anything here is at best nonsense and at worst forging a captcha
+# result, which is the one thing the brief is explicit about not doing.
+CAPTCHA_TOKEN_FIELDS = ("g-recaptcha-response", "h-captcha-response",
+                        "cf-turnstile-response", "captcha")
+
+
+def is_captcha_token(field: "Field") -> bool:
+    key = f"{field.name} {field.id}".lower()
+    return any(tok in key for tok in CAPTCHA_TOKEN_FIELDS)
 
 
 def _is_honeypot(node) -> bool:
@@ -68,6 +97,18 @@ def _is_honeypot(node) -> bool:
     has_label = bool(_attr(node, "aria-label") or _attr(node, "name")
                      or _attr(node, "id") or _attr(node, "placeholder"))
     return hidden and required and not has_label
+
+
+def _label_for(tree, node) -> str:
+    fid = _attr(node, "id")
+    if not fid:
+        return _attr(node, "data-label")
+    lab = tree.css_first(f'label[for="{fid}"]')
+    if lab is not None:
+        return " ".join(lab.text().split())
+    # Fixtures capture the resolved label as data-label, because a <label> that
+    # lives elsewhere in the document does not survive being trimmed.
+    return _attr(node, "data-label")
 
 
 def parse(html: str, *, form_selector: str = "form") -> list[Field]:
@@ -99,6 +140,7 @@ def parse(html: str, *, form_selector: str = "form") -> list[Field]:
             hidden=ftype == "hidden",
             honeypot=_is_honeypot(node),
             accept=_attr(node, "accept"),
+            label=_label_for(tree, node),
         ))
     return out
 
@@ -109,10 +151,12 @@ def fillable(fields: Iterable[Field]) -> list[Field]:
     Honeypots are excluded because filling them is the trap. Hidden inputs are
     excluded because they carry the site's own state -- Lever's accountId,
     origin, referer, resumeStorageId -- and writing to them is either
-    meaningless or actively breaks the submission.
+    meaningless or actively breaks the submission. Captcha token fields are
+    excluded because writing a value there is forging a captcha result.
     """
     return [f for f in fields
-            if not f.honeypot and not f.hidden and f.selector]
+            if not f.honeypot and not f.hidden and f.selector
+            and not is_captcha_token(f)]
 
 
 @dataclass(frozen=True)
@@ -128,6 +172,12 @@ class FillPlan:
     actions: Sequence[FillAction]
     unmapped: Sequence[str]          # required fields nothing could fill
     skipped_honeypots: int = 0
+    # Choice fields left blank. A required one is already in `unmapped`; these
+    # are the optional ones, reported because "optional" is the form's opinion
+    # and not necessarily yours -- the rendered Ashby form asks work rights as
+    # an optional radio group, and submitting with it blank is a real omission
+    # rather than a tidy default.
+    choices_left: Sequence[str] = ()
 
     @property
     def complete(self) -> bool:

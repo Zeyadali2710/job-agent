@@ -28,7 +28,8 @@ def load(name):
 
 
 def plan(name):
-    return plan_for(name, load(name), APPLICANT)
+    platform = "ashby" if name.startswith("ashby") else name
+    return plan_for(platform, load(name), APPLICANT)
 
 
 def selectors(p):
@@ -135,3 +136,65 @@ def test_an_unfillable_required_field_blocks_the_plan():
 def test_an_unknown_platform_raises_rather_than_guessing():
     with pytest.raises(ValueError):
         plan_for("workday", [], APPLICANT)
+
+
+# ------------------------------------------------- ashby, from a rendered DOM
+
+def test_ashby_maps_its_system_fields_once_rendered():
+    """The served HTML has nothing; these exist only after the app runs.
+    Captured with Playwright at networkidle -- see the fixture header."""
+    actions = {a.selector: a.value for a in plan("ashby_rendered").actions}
+    assert actions["#_systemfield_name"] == "Zeyad Ali"
+    assert actions["#_systemfield_email"] == "z@example.test"
+    assert actions["#_systemfield_resume"] == "/app/artifacts/r.pdf"
+
+
+def test_a_uuid_named_field_is_resolved_through_its_visible_label():
+    """Ashby's phone field is named a1b76c17-a1e9-40d5-... and labelled
+    "Phone". The name says nothing; the label is the whole signal."""
+    actions = {a.field_key: a.value for a in plan("ashby_rendered").actions}
+    phone = [v for k, v in actions.items() if v == "0400000000"]
+    assert phone, actions
+
+
+def test_the_cover_letter_upload_does_not_receive_the_applicants_name():
+    """"Cover letter" contains "name"? No -- but "full name" and "name" both
+    match loosely, so labels are matched longest-first. Without that, the
+    cover-letter file input gets a person's name typed into it."""
+    p = plan("ashby_rendered")
+    files = {a.selector: a.value for a in p.actions if a.kind == "file"}
+    assert all(v.endswith(".pdf") for v in files.values()), files
+
+
+def test_the_captcha_token_field_is_never_written_to():
+    """Ashby exposes <textarea name="g-recaptcha-response"> and Lever exposes
+    <input name="h-captcha-response">. Both look like somewhere to put an
+    answer. Writing there is forging a captcha result."""
+    for name in ("ashby_rendered", "lever"):
+        keys = {f.key for f in fillable(load(name))}
+        assert not any("captcha" in k.lower() for k in keys), name
+        assert not any("captcha" in (a.field_key or "").lower()
+                       for a in plan(name).actions), name
+
+
+def test_a_work_rights_radio_group_is_never_answered_automatically():
+    """The real form offers six options including "Graduate visa (e.g 485)".
+    Choosing one is a judgement about what the employer is asking, and it is
+    not a small thing to get wrong."""
+    p = plan("ashby_rendered")
+    assert not any(a.kind in ("check", "select") for a in p.actions)
+    assert any("Australian citizen" in c for c in p.choices_left)
+
+
+def test_a_radio_group_is_reported_as_one_question_not_one_per_option():
+    p = plan("ashby_rendered")
+    visa = [c for c in p.choices_left if "Australian citizen" in c]
+    assert len(visa) == 1 and "+5 more options" in visa[0]
+
+
+def test_an_optional_choice_left_blank_is_still_surfaced():
+    """"Optional" is the form's opinion. Submitting with work rights blank is
+    an omission, not a tidy default, so it is reported even though it does not
+    block the plan."""
+    p = plan("ashby_rendered")
+    assert p.complete is True and p.choices_left

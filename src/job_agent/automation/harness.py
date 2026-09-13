@@ -127,8 +127,10 @@ def prepare(driver: PageDriver, *, platform: str, url: str,
         platform=platform, url=url, plan=plan,
         captcha_infrastructure=refusals.has_captcha_infrastructure(after),
         screenshot_path=screenshot_path,
-        notes=(f"{plan.skipped_honeypots} honeypot field(s) left empty",)
-        if plan.skipped_honeypots else ())
+        notes=tuple(
+            ([f"{plan.skipped_honeypots} honeypot field(s) left empty"]
+             if plan.skipped_honeypots else [])
+            + ([f"unanswered optional question: {c}" for c in plan.choices_left])))
 
 
 def applicant_from(identity: Mapping, documents: Mapping[str, str],

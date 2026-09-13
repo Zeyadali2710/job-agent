@@ -16,5 +16,12 @@
     "bytes_original": 35794,
     "bytes_fixture": 793,
     "note": "no <form> and no <input> in the served HTML at all -- rendered client side; reCAPTCHA v3 badge hidden via CSS"
+  },
+  "ashby_rendered": {
+    "url": "https://jobs.ashbyhq.com/up/d422662e-c7f3-432b-a7aa-81cbfba053aa/application",
+    "captured": "rendered with Playwright at networkidle, inside the applier container",
+    "bytes_original": 63010,
+    "bytes_fixture": 3825,
+    "note": "no <form> element even once rendered; standard fields use a _systemfield_ prefix, everything else is a uuid whose meaning is in its <label for=...>, and g-recaptcha-response is a plain textarea"
   }
 }
