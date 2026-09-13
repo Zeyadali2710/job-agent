@@ -1,0 +1,20 @@
+{
+  "greenhouse": {
+    "url": "https://job-boards.greenhouse.io/cultureamp/jobs/8054865",
+    "bytes_original": 75250,
+    "bytes_fixture": 6275,
+    "note": "form id=application-form, fields addressed by id, 2 file inputs, GOOGLE_RECAPTCHA_INVISIBLE_KEY"
+  },
+  "lever": {
+    "url": "https://jobs.lever.co/lyrebirdhealth/94ea4491-d911-466f-92c5-195bd6ecf6cc/apply",
+    "bytes_original": 725288,
+    "bytes_fixture": 4064,
+    "note": "form id=application-form enctype=multipart/form-data, fields addressed by name, custom questions as cards[uuid][fieldN], invisible hCaptcha"
+  },
+  "ashby": {
+    "url": "https://jobs.ashbyhq.com/up/d422662e-c7f3-432b-a7aa-81cbfba053aa/application",
+    "bytes_original": 35794,
+    "bytes_fixture": 775,
+    "note": "no <form> and no <input> in server HTML at all -- the form is rendered client side; reCAPTCHA v3 badge hidden via CSS"
+  }
+}
